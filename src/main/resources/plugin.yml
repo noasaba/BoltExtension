@@ -1,22 +1,16 @@
 name: BoltExtension
 version: 1.0-SNAPSHOT
 main: com.noasaba.boltextension.BoltExtension
-api-version: "1.20.6"
-folia-supported: true
-authors: [ "com.noasaba" ]
-description: Bolt 拡張プラグイン（WorldEdit 選択範囲内で保護の一括更新、解除、所有権移譲、および管理者用全削除機能を提供）
+api-version: "1.20"
+authors: [ "noasaba" ]
+description: "Bolt + WorldEdit + WorldGuard で保護の一括操作"
+
 commands:
   boltext:
-    description: "保護の一括操作を実施します。（sub: public, private, unlock, transfer, admin unlock, confirm）"
-    usage: "/boltext <public|private|unlock|transfer|admin|confirm> [args...]"
+    description: "WorldEdit範囲内の保護を一括操作 (public/private/transfer/unlock/admin/confirm)"
+    usage: "/boltext <public|private|transfer|unlock|admin|confirm> [args...]"
+
 permissions:
-  bolt.extension.mod:
-    default: op
   bolt.extension.admin:
     default: op
-  bolt.extension.command:
-    default: true
-  bolt.extension.command.lock:
-    default: true
-  bolt.extension.command.unlock:
-    default: true
+    description: "他人の保護も削除できるadmin操作を実行できる権限"

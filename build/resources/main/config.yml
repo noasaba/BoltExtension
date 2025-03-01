@@ -1,3 +1,16 @@
-# BoltExtension の設定ファイル
-# 選択範囲のボリュームがこの値を超える場合、処理を中断します（単位: ブロック数）
-max-volume: 1000000
+# BoltExtension 設定ファイル
+# バージョン: 1.0
+
+# 最大処理可能ボリューム設定（単位: ブロック数）
+max-volume: 1000000  # 0に設定すると無制限（非推奨）
+
+# WorldGuard連携設定
+worldguard:
+  enabled: true       # WorldGuard連携の有効/無効
+  flag-default: true  # bolt-extension-allowフラグ未設定時のデフォルト値（true=許可）
+  allow-no-region: false # リージョンが存在しない領域での操作許可（true=許可する）
+
+# 高度な設定（必要に応じて変更）
+#logging:
+#  debug: false       # デバッグログの有効化
+#  max-errors: 10     # 1処理あたりの最大エラー表示数
