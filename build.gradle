@@ -31,6 +31,7 @@ dependencies {
     // https://mvnrepository.com/artifact/com.sk89q.worldedit/worldedit-bukkit
     compileOnly group: 'com.sk89q.worldedit', name: 'worldedit-bukkit', version: '7.3.10'
     compileOnly group: 'com.sk89q.worldguard', name: 'worldguard-bukkit', version: '7.0.13'
+
 }
 
 def targetJavaVersion = 21
