@@ -84,7 +84,11 @@ public class BoltExtension extends JavaPlugin implements CommandExecutor, TabCom
 
         getCommand("boltext").setExecutor(this);
         getCommand("boltext").setTabCompleter(this);
-        getLogger().info("BoltExtension v" + getDescription().getVersion() + " 起動完了");
+        //getLogger().info("BoltExtension v" + getDescription().getVersion() + " 起動完了");
+        getLogger().info("== === ==");
+        getLogger().info(getDescription().getName() + " v" + getDescription().getVersion() );
+        getLogger().info(" Developed by NOASABA (by nanosize)");
+        getLogger().info("== === ==");
     }
 
     /**
