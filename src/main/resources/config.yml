@@ -6,7 +6,7 @@ max-volume: 1000000  # 0に設定すると無制限（非推奨）
 
 # WorldGuard連携設定
 worldguard:
-  enabled: true       # WorldGuard連携の有効/無効
+  enabled: true       # WorldGuard連携の有効/無効（plugin.ymlでは必須依存として扱う）
   flag-default: true  # bolt-extension-allowフラグ未設定時のデフォルト値（true=許可）
   allow-no-region: false # リージョンが存在しない領域での操作許可（true=許可する）
 
