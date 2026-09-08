@@ -2,20 +2,28 @@
 
 ## 一般ユーザー向け
 
-通常操作では WorldEdit の選択範囲、WorldGuard のカスタムフラグ・BUILD判定・リージョン所属、対象保護の owner 判定が必要です。
+通常操作では WorldEdit の選択範囲、WorldGuard のカスタムフラグ・BUILD判定・リージョン所属が必要です。既存Protectionのtype・access変更は owner または Bolt の `edit` access を持つ利用者だけが実行できます。譲渡・解除は owner のみです。
 
 | 権限名 | チャットコマンド | 使い方の例 | 具体的な解説 |
 | --- | --- | --- | --- |
-| `bolt.extension.public` | `/boltext public` | `/boltext public` | 自分がownerの既存保護を`public`へ変更し、保護可能な未保護ブロックだけを新規保護します。`bolt.command.lock`も必要です。 |
-| `bolt.extension.private` | `/boltext private` | `/boltext private` | 自分がownerの既存保護を`private`へ変更し、保護可能な未保護ブロックだけを新規保護します。`bolt.command.lock`も必要です。 |
+| `bolt.extension.public` | `/boltext public` | `/boltext public` | ownerまたはBoltの`edit` accessを持つ既存保護を`public`へ変更し、保護可能な未保護ブロックだけを新規保護します。`bolt.command.lock`も必要です。 |
+| `bolt.extension.private` | `/boltext private` | `/boltext private` | ownerまたはBoltの`edit` accessを持つ既存保護を`private`へ変更し、保護可能な未保護ブロックだけを新規保護します。`bolt.command.lock`も必要です。 |
+| `bolt.extension.set` | `/boltext set <protectionType>` | `/boltext set donation` | Boltに登録済みの任意のprotection typeへ変更・新規作成します。type自体がrestrictedなら `bolt.type.protection.<type>` も必要です。`bolt.command.lock`も必要です。 |
 | `bolt.extension.transfer` | `/boltext transfer <targetPlayer>` | `/boltext transfer Steve` | 自分がownerの既存保護を、Boltに登録済みのオンライン・オフラインプレイヤーへ譲渡します。`bolt.command.transfer`も必要です。 |
 | `bolt.extension.unlock` | `/boltext unlock` | `/boltext unlock` | 自分がownerの既存保護を削除します。不正な既存Protectionも削除できます。`bolt.command.unlock`も必要です。 |
 | `bolt.extension.access.add` | `/boltext access add <player> [accessType]` | `/boltext access add Steve normal` | 自分がownerの既存保護に対象プレイヤーのBolt Sourceを追加します。未保護ブロックは作成しません。`bolt.command.edit`も必要です。 |
 | `bolt.extension.access.remove` | `/boltext access remove <player>` | `/boltext access remove Steve` | 指定プレイヤーのSourceだけを既存access mapから削除します。`user`は`access`のaliasです。`bolt.command.edit`も必要です。 |
+| `bolt.extension.access.add` | `/boltext access add-group <group> [accessType]` | `/boltext access add-group builders normal` | Boltに登録済みのグループを `group:builders` 形式のSourceとして既存保護へ追加します。未保護ブロックは作成しません。`bolt.command.edit`も必要です。 |
+| `bolt.extension.access.remove` | `/boltext access remove-group <group>` | `/boltext access remove-group builders` | 指定グループのSourceだけを既存access mapから削除します。`bolt.command.edit`も必要です。 |
+| `bolt.extension.entity.set` | `/boltext entity set <protectionType>` | `/boltext entity set private` | 選択範囲にいる、現在ロード済みの保護可能Entityを保護・type変更します。各Entity位置でWorldGuard判定を行います。`bolt.command.lock`も必要です。 |
+| `bolt.extension.entity.transfer` | `/boltext entity transfer <player>` | `/boltext entity transfer Steve` | 自分がownerのEntity Protectionを登録済みプレイヤーへ譲渡します。`bolt.command.transfer`も必要です。 |
+| `bolt.extension.entity.unlock` | `/boltext entity unlock` | `/boltext entity unlock` | 自分がownerのEntity Protectionを削除します。`bolt.command.unlock`も必要です。 |
 | `bolt.extension.scan` | `/boltext scan public` | `/boltext scan public` | `public` 操作の作成・変更・スキップ件数を、実際に変更せず確認します。 |
 | `bolt.extension.scan` | `/boltext scan private` | `/boltext scan private` | `private` 操作の作成・変更・スキップ件数を、実際に変更せず確認します。 |
 | `bolt.extension.scan` | `/boltext scan transfer <targetPlayer>` | `/boltext scan transfer Steve` | transfer の対象・スキップ件数を、owner を変更せず確認します。 |
 | `bolt.extension.scan` | `/boltext scan unlock` | `/boltext scan unlock` | unlock の削除対象・スキップ件数を、実際に削除せず確認します。 |
+| `bolt.extension.scan` | `/boltext scan set <protectionType>` | `/boltext scan set donation` | 任意typeへの変更・作成件数を、実際に変更せず確認します。 |
+| `bolt.extension.scan` | `/boltext scan entity <...>` | `/boltext scan entity set private` | Entity操作をdry-runします。Entityの新規作成は外部イベントを発火しないため、実行時に結果が変わる可能性があります。 |
 
 ## 管理者・デバッグ向け
 
@@ -32,8 +40,9 @@
 | 権限名 | デフォルト | 用途 |
 | --- | --- | --- |
 | `bolt.extension.use` | `false` | 一般操作権限の親ノード |
-| `bolt.extension.private` / `public` / `transfer` / `unlock` | `false` | 対応する通常操作 |
+| `bolt.extension.private` / `public` / `set` / `transfer` / `unlock` | `false` | 対応する通常操作 |
 | `bolt.extension.access.add` / `remove` | `false` | 既存Protectionのaccess list操作 |
+| `bolt.extension.entity.set` / `transfer` / `unlock` | `false` | 対応するEntity Protection操作 |
 | `bolt.extension.scan` | `false` | 許可された一般操作のdry-run |
 | `bolt.extension.inspect` | `op` | ブロック単位のBolt/WorldGuard診断 |
 | `bolt.extension.debug` | `op` | バージョン・設定・エラー詳細の診断 |

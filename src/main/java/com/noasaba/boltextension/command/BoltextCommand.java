@@ -9,6 +9,7 @@ import com.noasaba.boltextension.model.InvalidProtection;
 import com.noasaba.boltextension.model.OperationSummary;
 import com.noasaba.boltextension.model.SelectionContext;
 import com.noasaba.boltextension.service.BoltOperationService;
+import com.noasaba.boltextension.service.EntityOperationService;
 import com.noasaba.boltextension.service.WorldEditSelectionService;
 import com.noasaba.boltextension.service.WorldGuardAccessService;
 import com.sk89q.worldedit.IncompleteRegionException;
@@ -33,11 +34,15 @@ import java.util.logging.Level;
 public final class BoltextCommand implements CommandExecutor, TabCompleter {
 
     public static final String PERMISSION_PRIVATE = "bolt.extension.private";
+    public static final String PERMISSION_SET = "bolt.extension.set";
     public static final String PERMISSION_PUBLIC = "bolt.extension.public";
     public static final String PERMISSION_TRANSFER = "bolt.extension.transfer";
     public static final String PERMISSION_UNLOCK = "bolt.extension.unlock";
     public static final String PERMISSION_ACCESS_ADD = "bolt.extension.access.add";
     public static final String PERMISSION_ACCESS_REMOVE = "bolt.extension.access.remove";
+    public static final String PERMISSION_ENTITY_SET = "bolt.extension.entity.set";
+    public static final String PERMISSION_ENTITY_TRANSFER = "bolt.extension.entity.transfer";
+    public static final String PERMISSION_ENTITY_UNLOCK = "bolt.extension.entity.unlock";
     public static final String PERMISSION_SCAN = "bolt.extension.scan";
     public static final String PERMISSION_INSPECT = "bolt.extension.inspect";
     public static final String PERMISSION_DEBUG = "bolt.extension.debug";
@@ -49,6 +54,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
     private final WorldEditSelectionService selectionService;
     private final WorldGuardAccessService worldGuardService;
     private final BoltOperationService operationService;
+    private final EntityOperationService entityOperationService;
     private final Map<UUID, AdminUnlockPlan> pendingAdminUnlocks = new HashMap<>();
 
     public BoltextCommand(
@@ -56,13 +62,15 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
             PluginSettings settings,
             WorldEditSelectionService selectionService,
             WorldGuardAccessService worldGuardService,
-            BoltOperationService operationService
+            BoltOperationService operationService,
+            EntityOperationService entityOperationService
     ) {
         this.plugin = plugin;
         this.settings = settings;
         this.selectionService = selectionService;
         this.worldGuardService = worldGuardService;
         this.operationService = operationService;
+        this.entityOperationService = entityOperationService;
     }
 
     @Override
@@ -124,6 +132,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                     operationService.setProtection(player, selection, subcommand, true),
                     "更新"
             );
+            case "set" -> sendSummary(player, operationService.setProtection(player, selection, normalize(args[1]), true), "更新");
             case "transfer" -> handleTransfer(player, selection, args, true);
             case "unlock" -> sendSummary(
                     player,
@@ -131,6 +140,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                     "削除"
             );
             case "access" -> handleAccess(player, selection, args, true);
+            case "entity" -> handleEntity(player, selection, args, true);
             case "admin" -> handleAdminUnlock(player, selection, args);
             case "scan" -> handleScan(player, selection, args);
             default -> {
@@ -261,7 +271,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
 
     private void handleScan(Player player, SelectionContext selection, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ChatColor.RED + "使い方: /boltext scan <public|private|transfer|unlock|admin unlock>");
+            player.sendMessage(ChatColor.RED + "使い方: /boltext scan <public|private|set|transfer|unlock|access|entity|admin unlock>");
             return;
         }
         String target = normalize(args[1]);
@@ -271,6 +281,8 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                     operationService.setProtection(player, selection, target, false),
                     "更新予定"
             );
+            case "set" -> sendSummary(player,
+                    operationService.setProtection(player, selection, normalize(args[2]), false), "更新予定");
             case "transfer" -> handleTransfer(player, selection, args, false);
             case "unlock" -> sendSummary(
                     player,
@@ -278,6 +290,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                     "削除予定"
             );
             case "access" -> handleAccess(player, selection, sliceScanArguments(args), false);
+            case "entity" -> handleEntity(player, selection, sliceScanArguments(args), false);
             case "admin" -> {
                 if (args.length < 3 || !"unlock".equalsIgnoreCase(args[2])) {
                     player.sendMessage(ChatColor.RED + "使い方: /boltext scan admin unlock");
@@ -297,9 +310,11 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         return switch (subcommand) {
             case "public" -> requireOperationPermissions(player, PERMISSION_PUBLIC, "bolt.command.lock");
             case "private" -> requireOperationPermissions(player, PERMISSION_PRIVATE, "bolt.command.lock");
+            case "set" -> requireOperationPermissions(player, PERMISSION_SET, "bolt.command.lock");
             case "transfer" -> requireOperationPermissions(player, PERMISSION_TRANSFER, "bolt.command.transfer");
             case "unlock" -> requireOperationPermissions(player, PERMISSION_UNLOCK, "bolt.command.unlock");
             case "access" -> accessPermission(player, args, false);
+            case "entity" -> entityPermission(player, args, false);
             case "admin" -> requireOperationPermissions(player, PERMISSION_ADMIN_UNLOCK, "bolt.command.admin");
             case "scan" -> isAdminScan(args)
                     ? requireOperationPermissions(player, PERMISSION_ADMIN_UNLOCK, "bolt.command.admin")
@@ -311,8 +326,10 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
     private boolean validateSelectionArguments(Player player, String subcommand, String[] args) {
         return switch (subcommand) {
             case "public", "private", "unlock" -> true;
+            case "set" -> validateType(player, args, 1, "/boltext set <protectionType>");
             case "transfer" -> validateTransferTarget(player, args, 1, "/boltext transfer <targetPlayer>");
-            case "access" -> validateAccessArguments(player, args, 1, "/boltext access <add|remove> <player> [accessType]");
+            case "access" -> validateAccessArguments(player, args, 1, "/boltext access <add|remove|add-group|remove-group> <target> [accessType]");
+            case "entity" -> validateEntityArguments(player, args, 1, "/boltext entity <set|public|private|transfer|unlock> [args...]");
             case "admin" -> {
                 if (args.length < 2 || !"unlock".equalsIgnoreCase(args[1])) {
                     player.sendMessage(ChatColor.RED + "使い方: /boltext admin unlock");
@@ -332,19 +349,21 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
     private boolean validateScanArguments(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(ChatColor.RED +
-                    "使い方: /boltext scan <public|private|transfer|unlock|admin unlock>");
+                    "使い方: /boltext scan <public|private|set|transfer|unlock|access|entity|admin unlock>");
             return false;
         }
 
         return switch (normalize(args[1])) {
             case "public", "private", "unlock" -> true;
+            case "set" -> validateType(player, args, 2, "/boltext scan set <protectionType>");
             case "transfer" -> validateTransferTarget(
                     player,
                     args,
                     2,
                     "/boltext scan transfer <targetPlayer>"
             );
-            case "access" -> validateAccessArguments(player, args, 2, "/boltext scan access <add|remove> <player> [accessType]");
+            case "access" -> validateAccessArguments(player, args, 2, "/boltext scan access <add|remove|add-group|remove-group> <target> [accessType]");
+            case "entity" -> validateEntityArguments(player, args, 2, "/boltext scan entity <set|public|private|transfer|unlock> [args...]");
             case "admin" -> {
                 if (args.length < 3 || !"unlock".equalsIgnoreCase(args[2])) {
                     player.sendMessage(ChatColor.RED + "使い方: /boltext scan admin unlock");
@@ -389,7 +408,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         if (args.length <= actionIndex) {
             return true;
         }
-        String permission = "add".equalsIgnoreCase(args[actionIndex])
+        String permission = normalize(args[actionIndex]).startsWith("add")
                 ? PERMISSION_ACCESS_ADD : PERMISSION_ACCESS_REMOVE;
         return requireOperationPermissions(player, permission, "bolt.command.edit");
     }
@@ -401,35 +420,106 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         return switch (normalize(args[1])) {
             case "public" -> requireOperationPermissions(player, PERMISSION_PUBLIC, "bolt.command.lock");
             case "private" -> requireOperationPermissions(player, PERMISSION_PRIVATE, "bolt.command.lock");
+            case "set" -> requireOperationPermissions(player, PERMISSION_SET, "bolt.command.lock");
             case "transfer" -> requireOperationPermissions(player, PERMISSION_TRANSFER, "bolt.command.transfer");
             case "unlock" -> requireOperationPermissions(player, PERMISSION_UNLOCK, "bolt.command.unlock");
             case "access" -> accessPermission(player, args, true);
+            case "entity" -> entityPermission(player, args, true);
             default -> true;
         };
     }
 
     private boolean validateAccessArguments(Player player, String[] args, int actionIndex, String usage) {
-        if (args.length <= actionIndex + 1 || (!"add".equalsIgnoreCase(args[actionIndex]) && !"remove".equalsIgnoreCase(args[actionIndex]))) {
+        if (args.length <= actionIndex + 1) {
             player.sendMessage(ChatColor.RED + "使い方: " + usage);
             return false;
+        }
+        String action = normalize(args[actionIndex]);
+        if (!List.of("add", "remove", "add-group", "remove-group").contains(action)) {
+            player.sendMessage(ChatColor.RED + "使い方: " + usage);
+            return false;
+        }
+        if (action.endsWith("group")) {
+            if (operationService.resolveKnownGroup(args[actionIndex + 1]).isEmpty()) {
+                player.sendMessage(ChatColor.RED + "Boltに登録済みのグループ名を指定してください");
+                return false;
+            }
+            return true;
         }
         return validateTransferTarget(player, args, actionIndex + 1, usage);
     }
 
     private void handleAccess(Player player, SelectionContext selection, String[] args, boolean execute) {
-        int actionIndex = execute ? 1 : 1;
+        int actionIndex = 1;
         int targetIndex = actionIndex + 1;
-        boolean add = "add".equalsIgnoreCase(args[actionIndex]);
-        UUID target = resolveKnownPlayer(args[targetIndex]);
+        String action = normalize(args[actionIndex]);
+        boolean add = action.startsWith("add");
+        boolean group = action.endsWith("group");
         String type = add && args.length > targetIndex + 1
                 ? normalize(args[targetIndex + 1]) : operationService.defaultAccessType();
-        sendSummary(player, operationService.changeAccess(player, selection, target, type, add, execute),
+        String source = group
+                ? operationService.groupSource(args[targetIndex])
+                : org.popcraft.bolt.source.Source.player(resolveKnownPlayer(args[targetIndex])).toString();
+        sendSummary(player, operationService.changeAccessSource(player, selection, source, type, add, execute),
                 execute ? "アクセス更新" : "アクセス更新予定");
+    }
+
+    private boolean validateType(Player player, String[] args, int index, String usage) {
+        if (args.length <= index || !operationService.protectionTypes().contains(normalize(args[index]))) {
+            player.sendMessage(ChatColor.RED + "Boltに登録済みのprotection typeを指定してください。使い方: " + usage);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateEntityArguments(Player player, String[] args, int actionIndex, String usage) {
+        if (args.length <= actionIndex) {
+            player.sendMessage(ChatColor.RED + "使い方: " + usage);
+            return false;
+        }
+        return switch (normalize(args[actionIndex])) {
+            case "public", "private" -> true;
+            case "set" -> validateType(player, args, actionIndex + 1, usage);
+            case "transfer" -> validateTransferTarget(player, args, actionIndex + 1, usage);
+            case "unlock" -> true;
+            default -> {
+                player.sendMessage(ChatColor.RED + "使い方: " + usage);
+                yield false;
+            }
+        };
+    }
+
+    private boolean entityPermission(Player player, String[] args, boolean scan) {
+        int actionIndex = scan ? 2 : 1;
+        if (args.length <= actionIndex) {
+            return true;
+        }
+        return switch (normalize(args[actionIndex])) {
+            case "public", "private", "set" -> requireOperationPermissions(player, PERMISSION_ENTITY_SET, "bolt.command.lock");
+            case "transfer" -> requireOperationPermissions(player, PERMISSION_ENTITY_TRANSFER, "bolt.command.transfer");
+            case "unlock" -> requireOperationPermissions(player, PERMISSION_ENTITY_UNLOCK, "bolt.command.unlock");
+            default -> true;
+        };
+    }
+
+    private void handleEntity(Player player, SelectionContext selection, String[] args, boolean execute) {
+        String action = normalize(args[1]);
+        switch (action) {
+            case "public", "private" -> sendSummary(player,
+                    entityOperationService.setProtection(player, selection, action, execute), execute ? "Entity更新" : "Entity更新予定");
+            case "set" -> sendSummary(player,
+                    entityOperationService.setProtection(player, selection, normalize(args[2]), execute), execute ? "Entity更新" : "Entity更新予定");
+            case "transfer" -> sendSummary(player,
+                    entityOperationService.transfer(player, selection, resolveKnownPlayer(args[2]), execute), execute ? "Entity移譲" : "Entity移譲予定");
+            case "unlock" -> sendSummary(player,
+                    entityOperationService.unlock(player, selection, execute), execute ? "Entity削除" : "Entity削除予定");
+            default -> throw new IllegalArgumentException("Unsupported entity action: " + action);
+        }
     }
 
     private String[] sliceScanArguments(String[] args) {
         String[] sliced = new String[args.length - 1];
-        sliced[0] = "access";
+        sliced[0] = args[1];
         System.arraycopy(args, 2, sliced, 1, args.length - 2);
         return sliced;
     }
@@ -490,7 +580,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
 
     private void showUsage(Player player) {
         player.sendMessage(ChatColor.YELLOW +
-                "/boltext <public|private|transfer|unlock|access|user|audit|inspect|scan|admin|confirm|debug>");
+                "/boltext <public|private|set|transfer|unlock|access|entity|user|audit|inspect|scan|admin|confirm|debug>");
     }
 
     private String pluginVersion(String name) {
@@ -512,11 +602,14 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
             List<String> commands = new ArrayList<>();
             if (player.hasPermission(PERMISSION_PUBLIC)) commands.add("public");
             if (player.hasPermission(PERMISSION_PRIVATE)) commands.add("private");
+            if (player.hasPermission(PERMISSION_SET)) commands.add("set");
             if (player.hasPermission(PERMISSION_TRANSFER)) commands.add("transfer");
             if (player.hasPermission(PERMISSION_UNLOCK)) commands.add("unlock");
             if (player.hasPermission(PERMISSION_ACCESS_ADD) || player.hasPermission(PERMISSION_ACCESS_REMOVE)) {
                 commands.addAll(List.of("access", "user"));
             }
+            if (player.hasPermission(PERMISSION_ENTITY_SET) || player.hasPermission(PERMISSION_ENTITY_TRANSFER)
+                    || player.hasPermission(PERMISSION_ENTITY_UNLOCK)) commands.add("entity");
             if (player.hasPermission(PERMISSION_SCAN) || player.hasPermission(PERMISSION_ADMIN_UNLOCK)) {
                 commands.add("scan");
             }
@@ -534,6 +627,8 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                 case "transfer" -> player.hasPermission(PERMISSION_TRANSFER)
                         ? onlinePlayers(args[1])
                         : List.of();
+                case "set" -> player.hasPermission(PERMISSION_SET) ? filter(operationService.protectionTypes(), args[1]) : List.of();
+                case "entity" -> filter(entityActions(player), args[1]);
                 case "admin" -> player.hasPermission(PERMISSION_ADMIN_UNLOCK)
                         ? filter(List.of("unlock"), args[1])
                         : List.of();
@@ -541,7 +636,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                         ? filter(List.of("status"), args[1])
                         : List.of();
                 case "scan" -> filter(scanTargets(player), args[1]);
-                case "access", "user" -> filter(List.of("add", "remove"), args[1]);
+                case "access", "user" -> filter(List.of("add", "remove", "add-group", "remove-group"), args[1]);
                 case "audit" -> player.hasPermission(PERMISSION_AUDIT) ? filter(List.of("invalid"), args[1]) : List.of();
                 default -> List.of();
             };
@@ -553,6 +648,12 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
             if ("admin".equalsIgnoreCase(args[1]) && player.hasPermission(PERMISSION_ADMIN_UNLOCK)) {
                 return filter(List.of("unlock"), args[2]);
             }
+            if ("set".equalsIgnoreCase(args[1]) && player.hasPermission(PERMISSION_SET)) {
+                return filter(operationService.protectionTypes(), args[2]);
+            }
+            if ("entity".equalsIgnoreCase(args[1])) {
+                return filter(entityActions(player), args[2]);
+            }
         }
         return List.of();
     }
@@ -562,14 +663,25 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         if (player.hasPermission(PERMISSION_SCAN)) {
             if (player.hasPermission(PERMISSION_PUBLIC)) targets.add("public");
             if (player.hasPermission(PERMISSION_PRIVATE)) targets.add("private");
+            if (player.hasPermission(PERMISSION_SET)) targets.add("set");
             if (player.hasPermission(PERMISSION_TRANSFER)) targets.add("transfer");
             if (player.hasPermission(PERMISSION_UNLOCK)) targets.add("unlock");
             if (player.hasPermission(PERMISSION_ACCESS_ADD) || player.hasPermission(PERMISSION_ACCESS_REMOVE)) targets.add("access");
+            if (player.hasPermission(PERMISSION_ENTITY_SET) || player.hasPermission(PERMISSION_ENTITY_TRANSFER)
+                    || player.hasPermission(PERMISSION_ENTITY_UNLOCK)) targets.add("entity");
         }
         if (player.hasPermission(PERMISSION_ADMIN_UNLOCK)) {
             targets.add("admin");
         }
         return targets;
+    }
+
+    private List<String> entityActions(Player player) {
+        List<String> actions = new ArrayList<>();
+        if (player.hasPermission(PERMISSION_ENTITY_SET)) actions.addAll(List.of("set", "public", "private"));
+        if (player.hasPermission(PERMISSION_ENTITY_TRANSFER)) actions.add("transfer");
+        if (player.hasPermission(PERMISSION_ENTITY_UNLOCK)) actions.add("unlock");
+        return actions;
     }
 
     private List<String> onlinePlayers(String prefix) {

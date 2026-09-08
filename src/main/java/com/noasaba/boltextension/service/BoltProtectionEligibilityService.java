@@ -2,10 +2,13 @@ package com.noasaba.boltextension.service;
 
 import com.noasaba.boltextension.model.SkipReason;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.popcraft.bolt.BoltPlugin;
 import org.popcraft.bolt.access.Access;
 import org.popcraft.bolt.event.LockBlockEvent;
+import org.popcraft.bolt.event.LockEntityEvent;
+import org.popcraft.bolt.source.SourceTypes;
 import org.popcraft.bolt.util.ProtectableConfig;
 
 import java.util.Optional;
@@ -62,6 +65,38 @@ public final class BoltProtectionEligibilityService {
         return null;
     }
 
+    public SkipReason checkNewProtection(Player player, Entity entity, String type, boolean fireEvent) {
+        if (!bolt.isProtectable(entity)) {
+            return SkipReason.NOT_PROTECTABLE;
+        }
+
+        ProtectableConfig config = bolt.getProtectableConfig(entity);
+        if (config == null) {
+            return SkipReason.NOT_PROTECTABLE;
+        }
+
+        SkipReason typeDecision = checkType(player, type);
+        if (typeDecision != null) {
+            return typeDecision;
+        }
+
+        String entityType = entity.getType().name().toLowerCase(java.util.Locale.ROOT);
+        if (config.lockPermission() && !player.hasPermission("bolt.protection.lock." + entityType)) {
+            return SkipReason.ENTITY_LOCK_PERMISSION_DENIED;
+        }
+
+        if (fireEvent) {
+            LockEntityEvent event = new LockEntityEvent(player, entity, false);
+            bolt.getEventBus().post(event);
+            if (event.isCancelled()) {
+                return SkipReason.LOCK_EVENT_CANCELLED;
+            }
+        } else {
+            return SkipReason.LOCK_EVENT_NOT_EVALUATED;
+        }
+        return null;
+    }
+
     public SkipReason checkAccessType(Player player, String type) {
         Access access = bolt.getBolt().getAccessRegistry().getAccessByType(type).orElse(null);
         if (access == null) {
@@ -75,6 +110,23 @@ public final class BoltProtectionEligibilityService {
 
     public String defaultAccessType() {
         return bolt.getDefaultAccessType();
+    }
+
+    public java.util.List<String> protectionTypes() {
+        return bolt.getBolt().getAccessRegistry().protectionTypes().stream().sorted().toList();
+    }
+
+    public Optional<String> resolveKnownGroup(String name) {
+        try {
+            return Optional.ofNullable(bolt.getBolt().getStore().loadGroup(name).join())
+                    .map(group -> group.getName());
+        } catch (RuntimeException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public String groupSource(String name) {
+        return org.popcraft.bolt.source.Source.of(SourceTypes.GROUP, name).toString();
     }
 
     public Optional<UUID> resolveKnownPlayer(String name) {

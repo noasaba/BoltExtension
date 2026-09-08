@@ -4,6 +4,7 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.Region;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 
 public record SelectionContext(
         World world,
@@ -18,6 +19,17 @@ public record SelectionContext(
                 block.getX(),
                 block.getY(),
                 block.getZ()
+        ));
+    }
+
+    public boolean contains(Entity entity) {
+        if (!world.equals(entity.getWorld())) {
+            return false;
+        }
+        return region.contains(BlockVector3.at(
+                entity.getLocation().getBlockX(),
+                entity.getLocation().getBlockY(),
+                entity.getLocation().getBlockZ()
         ));
     }
 

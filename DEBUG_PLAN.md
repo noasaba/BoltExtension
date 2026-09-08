@@ -18,6 +18,19 @@
 - dry-runの `scan`、ブロック診断の `inspect`、環境診断の `debug status`、操作ID、skip reason、失敗サンプルを追加。
 - JDK 25、Gradle 9.1.0、Paper API 26.1.2向けに更新し、Paper/Velocity成果物を別ディレクトリへ出すrelease taskを追加。
 
+## 2.1 Bolt機能互換の拡張（2026-09-09）
+
+- `/boltext set <protectionType>` と対応するscanで、Boltの登録済み任意protection typeを指定できるようにする。
+- 既存保護のtype変更とaccess変更は、ownerに加えてBoltの `edit` accessを持つ利用者にも許可する。譲渡と解除はowner-onlyのまま維持する。
+- Bolt Storeに存在確認できるグループだけを `group:<name>` Sourceとして追加・削除する。パスワードはコマンド履歴・ログ・監査プラグインへ残る危険があるため、CLI引数では扱わない。
+- `/boltext entity <set|public|private|transfer|unlock>` と対応するscanを追加し、選択範囲内の現在ロード済みEntityだけを処理する。新規保護の可否、type、Entity lock permission、`LockEntityEvent`、WorldGuardをEntityごとに確認する。
+
+残る実サーバー確認:
+
+- Boltで有効にしたEntity種別（例: armor stand, item frame）と、Entity種別ごとの `bolt.protection.lock.<entity>` を使い、新規作成・type変更・イベントキャンセルを確認する。
+- WorldGuardのDENY領域境界をまたぐ選択で、Entity位置ごとに拒否されることを確認する。
+- `edit` accessをプレイヤーSourceとgroup Sourceの両方で付与し、owner以外のtype/access変更だけが通り、譲渡・解除は通らないことを確認する。
+
 検証状況:
 
 - `git diff --check`: 成功。

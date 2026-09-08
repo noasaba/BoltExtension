@@ -9,7 +9,7 @@ depend: [ "WorldEdit", "Bolt", "WorldGuard" ]
 commands:
   boltext:
     description: "WorldEdit範囲内のBolt保護を一括操作・診断"
-    usage: "/boltext <public|private|transfer|unlock|access|user|audit|inspect|scan|admin|confirm|debug> [args...]"
+    usage: "/boltext <public|private|set|transfer|unlock|access|entity|user|audit|inspect|scan|admin|confirm|debug> [args...]"
 
 permissions:
   bolt.extension.use:
@@ -18,13 +18,20 @@ permissions:
     children:
       bolt.extension.private: true
       bolt.extension.public: true
+      bolt.extension.set: true
       bolt.extension.transfer: true
       bolt.extension.unlock: true
       bolt.extension.access.add: true
       bolt.extension.access.remove: true
+      bolt.extension.entity.set: true
+      bolt.extension.entity.transfer: true
+      bolt.extension.entity.unlock: true
   bolt.extension.private:
     default: false
     description: "private保護の一括作成・変更"
+  bolt.extension.set:
+    default: false
+    description: "任意のBolt protection typeへの一括作成・変更"
   bolt.extension.public:
     default: false
     description: "public保護の一括作成・変更"
@@ -40,6 +47,15 @@ permissions:
   bolt.extension.access.remove:
     default: false
     description: "自分の保護からアクセスを削除"
+  bolt.extension.entity.set:
+    default: false
+    description: "選択範囲内のEntity保護を作成・変更"
+  bolt.extension.entity.transfer:
+    default: false
+    description: "自分がownerのEntity保護を一括譲渡"
+  bolt.extension.entity.unlock:
+    default: false
+    description: "自分がownerのEntity保護を一括解除"
   bolt.extension.scan:
     default: false
     description: "一般操作をdry-runで事前確認する権限"

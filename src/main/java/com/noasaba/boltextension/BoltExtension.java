@@ -4,6 +4,7 @@ import com.noasaba.boltextension.command.BoltextCommand;
 import com.noasaba.boltextension.config.PluginSettings;
 import com.noasaba.boltextension.service.BoltOperationService;
 import com.noasaba.boltextension.service.BoltProtectionEligibilityService;
+import com.noasaba.boltextension.service.EntityOperationService;
 import com.noasaba.boltextension.service.WorldEditSelectionService;
 import com.noasaba.boltextension.service.WorldGuardAccessService;
 import com.sk89q.worldguard.WorldGuard;
@@ -79,11 +80,19 @@ public final class BoltExtension extends JavaPlugin {
                 worldGuardFlag,
                 getLogger()
         );
+        BoltProtectionEligibilityService eligibilityService = new BoltProtectionEligibilityService(boltPlugin);
         BoltOperationService operationService = new BoltOperationService(
                 boltApi,
                 settings,
                 worldGuardService,
-                new BoltProtectionEligibilityService(boltPlugin),
+                eligibilityService,
+                getLogger()
+        );
+        EntityOperationService entityOperationService = new EntityOperationService(
+                boltApi,
+                settings,
+                worldGuardService,
+                eligibilityService,
                 getLogger()
         );
         BoltextCommand commandHandler = new BoltextCommand(
@@ -91,7 +100,8 @@ public final class BoltExtension extends JavaPlugin {
                 settings,
                 selectionService,
                 worldGuardService,
-                operationService
+                operationService,
+                entityOperationService
         );
 
         command.setExecutor(commandHandler);

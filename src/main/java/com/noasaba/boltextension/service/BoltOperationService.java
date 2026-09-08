@@ -17,6 +17,7 @@ import org.popcraft.bolt.BoltAPI;
 import org.popcraft.bolt.protection.BlockProtection;
 import org.popcraft.bolt.protection.Protection;
 import org.popcraft.bolt.source.Source;
+import org.popcraft.bolt.util.Permission;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,8 +62,8 @@ public final class BoltOperationService {
                     summary.skip(SkipReason.DUPLICATE_PROTECTION);
                     return;
                 }
-                if (!isOwner(player, protection)) {
-                    summary.skip(SkipReason.OWNER_MISMATCH);
+                if (!canEdit(player, protection)) {
+                    summary.skip(SkipReason.EDIT_ACCESS_DENIED);
                     return;
                 }
                 if (type.equals(protection.getType())) {
@@ -174,7 +175,17 @@ public final class BoltOperationService {
             boolean add,
             boolean execute
     ) {
-        String source = Source.player(target).toString();
+        return changeAccessSource(player, selection, Source.player(target).toString(), accessType, add, execute);
+    }
+
+    public OperationSummary changeAccessSource(
+            Player player,
+            SelectionContext selection,
+            String source,
+            String accessType,
+            boolean add,
+            boolean execute
+    ) {
         return run("access-" + (add ? "add" : "remove"), player, selection, execute, (block, summary) -> {
             Protection protection = bolt.findProtection(block);
             if (protection == null) {
@@ -185,8 +196,8 @@ public final class BoltOperationService {
                 summary.skip(SkipReason.DUPLICATE_PROTECTION);
                 return;
             }
-            if (!isOwner(player, protection)) {
-                summary.skip(SkipReason.OWNER_MISMATCH);
+            if (!canEdit(player, protection)) {
+                summary.skip(SkipReason.EDIT_ACCESS_DENIED);
                 return;
             }
             if (!hasWorldGuardAccess(player, block, protection, summary)) {
@@ -244,6 +255,18 @@ public final class BoltOperationService {
 
     public String defaultAccessType() {
         return eligibilityService.defaultAccessType();
+    }
+
+    public List<String> protectionTypes() {
+        return eligibilityService.protectionTypes();
+    }
+
+    public Optional<String> resolveKnownGroup(String name) {
+        return eligibilityService.resolveKnownGroup(name);
+    }
+
+    public String groupSource(String name) {
+        return eligibilityService.groupSource(name);
     }
 
     public AdminUnlockPlan prepareAdminUnlock(Player player, SelectionContext selection) {
@@ -430,6 +453,18 @@ public final class BoltOperationService {
 
     private boolean isOwner(Player player, Protection protection) {
         return player.getUniqueId().equals(protection.getOwner());
+    }
+
+    private boolean canEdit(Player player, Protection protection) {
+        if (isOwner(player, protection)) {
+            return true;
+        }
+        try {
+            return bolt.canAccess(protection, player, Permission.EDIT);
+        } catch (RuntimeException exception) {
+            logger.log(Level.WARNING, "Bolt editアクセス判定に失敗しました", exception);
+            return false;
+        }
     }
 
     private void debug(

@@ -74,6 +74,9 @@ permissions:
 - **/boltext private**  
   選択範囲内の自分が所有する保護を「private」に変更します。未保護かつ Bolt が保護対象として扱うブロックには新規保護を作成します。
 
+- **/boltext set `<protectionType>`**
+  Boltに登録されている任意のprotection typeへ、既存保護を変更または未保護ブロックを新規保護します。
+
 - **/boltext transfer `<targetPlayer>`**  
   自分が所有するブロック保護を指定したプレイヤーに譲渡します。
 
@@ -81,7 +84,10 @@ permissions:
   自分が所有するブロック保護を解除（削除）します。
 
 - **/boltext access add `<player>` [accessType]** / **/boltext access remove `<player>`**
-  自分が所有する既存保護のaccess listだけを変更します。`user` は `access` のaliasです。未保護ブロックを新規保護しません。
+  既存保護のaccess listだけを変更します。操作にはownerまたはBoltの`edit` accessが必要です。`/boltext access add-group <group> [accessType]` と `/boltext access remove-group <group>` は、Boltに登録されたグループを対象にします。`user` は `access` のaliasです。未保護ブロックを新規保護しません。
+
+- **/boltext entity `<set|public|private|transfer|unlock>` [args...]**
+  選択範囲にいる現在ロード済みの保護可能Entityを対象に、同等の保護操作を行います。Entity位置ごとにWorldGuardを確認します。
 
 - **/boltext audit invalid [page]**
   現在Boltでprotectableではないのに残っている既存Block Protectionを確認専用で表示します。
@@ -98,20 +104,21 @@ permissions:
 - **/boltext debug status**
   Java、サーバー、依存プラグイン、WorldGuard連携設定の状態を表示します。
 
-- **/boltext scan `<public|private|transfer|unlock|admin unlock>` [args...]**  
+- **/boltext scan `<public|private|set|transfer|unlock|access|entity|admin unlock>` [args...]**
   実行せずに、選択範囲内で何件が対象・スキップ・失敗になりそうかを確認します。
 
 ## 注意事項
 
 - 選択範囲内のブロック数が `max-volume` の設定値を超える場合、処理が中断されます。
 - `max-volume` を `0` 以下にすると、範囲サイズ制限を無効化します。
-- 通常コマンドは対象保護の owner のみ実行できます。
+- type・access変更は対象保護のownerまたはBoltの`edit` accessを持つ利用者が実行できます。譲渡・解除はownerのみです。
 - 対象エリアの WorldGuard 権限設定（フラグ、オーナー・メンバー設定等）も考慮されます。
 - WorldGuard の `bolt-extension-allow` と有効な `BUILD` 判定を使い、リージョンの優先度・継承・region groupを反映します。
 - 非直方体のWorldEdit選択では、外接直方体ではなく実際に選択されたブロックだけを処理します。
 - ドアや連結チェストなどの代表保護が選択外にある場合、その代表ブロック側のWorldGuard権限も確認します。
 - 管理者のunlockだけがowner判定をバイパスできます。WorldGuard判定はバイパスせず、誤操作防止の確認手順と削除直前の再検証を必須にしています。
 - `scan` は変更を行いません。新規作成については外部プラグインがキャンセルできる`LockBlockEvent`を発火しないため、`LOCK_EVENT_NOT_EVALUATED`が表示された件数は本実行時に変わる可能性があります。
+- Entity操作は選択範囲内で現在ロード済みのEntityだけを対象にします。チャンクを強制ロードしません。
 
 ## 開発者情報
 
