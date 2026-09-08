@@ -80,6 +80,21 @@ public final class OperationSummary {
         return List.copyOf(errorSamples);
     }
 
+    public void mergeFrom(OperationSummary other, int maxErrorSamples) {
+        scanned += other.scanned;
+        created += other.created;
+        potentialCreated += other.potentialCreated;
+        changed += other.changed;
+        transferred += other.transferred;
+        removed += other.removed;
+        failed += other.failed;
+        other.skipped.forEach((reason, count) -> skipped.merge(reason, count, Long::sum));
+        for (String sample : other.errorSamples) {
+            if (errorSamples.size() >= maxErrorSamples) break;
+            errorSamples.add(sample);
+        }
+    }
+
     public String describeMain() {
         return "ID " + operationId +
                 " | 走査 " + scanned +

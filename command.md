@@ -6,16 +6,16 @@
 
 | 権限名 | チャットコマンド | 使い方の例 | 具体的な解説 |
 | --- | --- | --- | --- |
-| `bolt.extension.public` | `/boltext public` | `/boltext public` | ownerまたはBoltの`edit` accessを持つ既存保護を`public`へ変更し、保護可能な未保護ブロックだけを新規保護します。`bolt.command.lock`も必要です。 |
-| `bolt.extension.private` | `/boltext private` | `/boltext private` | ownerまたはBoltの`edit` accessを持つ既存保護を`private`へ変更し、保護可能な未保護ブロックだけを新規保護します。`bolt.command.lock`も必要です。 |
-| `bolt.extension.set` | `/boltext set <protectionType>` | `/boltext set donation` | Boltに登録済みの任意のprotection typeへ変更・新規作成します。type自体がrestrictedなら `bolt.type.protection.<type>` も必要です。`bolt.command.lock`も必要です。 |
-| `bolt.extension.transfer` | `/boltext transfer <targetPlayer>` | `/boltext transfer Steve` | 自分がownerの既存保護を、Boltに登録済みのオンライン・オフラインプレイヤーへ譲渡します。`bolt.command.transfer`も必要です。 |
-| `bolt.extension.unlock` | `/boltext unlock` | `/boltext unlock` | 自分がownerの既存保護を削除します。不正な既存Protectionも削除できます。`bolt.command.unlock`も必要です。 |
-| `bolt.extension.access.add` | `/boltext access add <player> [accessType]` | `/boltext access add Steve normal` | 自分がownerの既存保護に対象プレイヤーのBolt Sourceを追加します。未保護ブロックは作成しません。`bolt.command.edit`も必要です。 |
+| `bolt.extension.public` | `/boltext public` | `/boltext public` | 範囲内のブロックとロード済みEntityをまとめて`public`へ変更し、保護可能な未保護対象を新規保護します。既存保護にはownerまたはBoltの`edit` accessが必要です。`bolt.command.lock`も必要です。 |
+| `bolt.extension.private` | `/boltext private` | `/boltext private` | 範囲内のブロックとロード済みEntityをまとめて`private`へ変更し、保護可能な未保護対象を新規保護します。既存保護にはownerまたはBoltの`edit` accessが必要です。`bolt.command.lock`も必要です。 |
+| `bolt.extension.set` | `/boltext set <protectionType>` | `/boltext set donation` | 範囲内のブロックとロード済みEntityを、Boltに登録済みの任意typeへ変更・新規作成します。type自体がrestrictedなら `bolt.type.protection.<type>` も必要です。`bolt.command.lock`も必要です。 |
+| `bolt.extension.transfer` | `/boltext transfer <targetPlayer>` | `/boltext transfer Steve` | 範囲内で自分がownerのブロック・Entity Protectionを、Boltに登録済みのオンライン・オフラインプレイヤーへ譲渡します。`bolt.command.transfer`も必要です。 |
+| `bolt.extension.unlock` | `/boltext unlock` | `/boltext unlock` | 範囲内で自分がownerのブロック・Entity Protectionを削除します。不正な既存Protectionも削除できます。`bolt.command.unlock`も必要です。 |
+| `bolt.extension.access.add` | `/boltext access add <player> [accessType]` | `/boltext access add Steve normal` | 範囲内のブロック・Entity Protectionへ対象プレイヤーのBolt Sourceを追加します。未保護対象は作成しません。`bolt.command.edit`も必要です。 |
 | `bolt.extension.access.remove` | `/boltext access remove <player>` | `/boltext access remove Steve` | 指定プレイヤーのSourceだけを既存access mapから削除します。`user`は`access`のaliasです。`bolt.command.edit`も必要です。 |
 | `bolt.extension.access.add` | `/boltext access add-group <group> [accessType]` | `/boltext access add-group builders normal` | Boltに登録済みのグループを `group:builders` 形式のSourceとして既存保護へ追加します。未保護ブロックは作成しません。`bolt.command.edit`も必要です。 |
 | `bolt.extension.access.remove` | `/boltext access remove-group <group>` | `/boltext access remove-group builders` | 指定グループのSourceだけを既存access mapから削除します。`bolt.command.edit`も必要です。 |
-| `bolt.extension.entity.set` | `/boltext entity set <protectionType>` | `/boltext entity set private` | 選択範囲にいる、現在ロード済みの保護可能Entityを保護・type変更します。各Entity位置でWorldGuard判定を行います。`bolt.command.lock`も必要です。 |
+| `bolt.extension.entity.set` | `/boltext entity set <protectionType>` | `/boltext entity set private` | 互換用のEntity限定操作です。通常は `/boltext set <protectionType>` を使うとブロックもEntityもまとめて操作できます。 |
 | `bolt.extension.entity.transfer` | `/boltext entity transfer <player>` | `/boltext entity transfer Steve` | 自分がownerのEntity Protectionを登録済みプレイヤーへ譲渡します。`bolt.command.transfer`も必要です。 |
 | `bolt.extension.entity.unlock` | `/boltext entity unlock` | `/boltext entity unlock` | 自分がownerのEntity Protectionを削除します。`bolt.command.unlock`も必要です。 |
 | `bolt.extension.entity.access.add` | `/boltext entity access add <player> [accessType]` | `/boltext entity access add Steve normal` | ownerまたはBoltの`edit` accessを持つEntity Protectionへ、プレイヤーのSourceを追加します。`bolt.command.edit`も必要です。 |

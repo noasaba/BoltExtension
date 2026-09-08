@@ -69,22 +69,22 @@ permissions:
   選択範囲内の自分が所有する保護を「public」に変更します。未保護かつ Bolt が保護対象として扱うブロックには新規保護を作成します。
 
 - **/boltext private**  
-  選択範囲内の自分が所有する保護を「private」に変更します。未保護かつ Bolt が保護対象として扱うブロックには新規保護を作成します。
+  選択範囲内のブロックと現在ロード済みEntityを「private」に変更します。未保護かつ Bolt が保護対象として扱う対象には新規保護を作成します。
 
 - **/boltext set `<protectionType>`**
-  Boltに登録されている任意のprotection typeへ、既存保護を変更または未保護ブロックを新規保護します。
+  Boltに登録されている任意のprotection typeへ、ブロックと現在ロード済みEntityの既存保護を変更または未保護対象を新規保護します。
 
 - **/boltext transfer `<targetPlayer>`**  
-  自分が所有するブロック保護を指定したプレイヤーに譲渡します。
+  自分が所有するブロック・Entity保護を指定したプレイヤーに譲渡します。
 
 - **/boltext unlock**  
-  自分が所有するブロック保護を解除（削除）します。
+  自分が所有するブロック・Entity保護を解除（削除）します。
 
 - **/boltext access add `<player>` [accessType]** / **/boltext access remove `<player>`**
   既存保護のaccess listだけを変更します。操作にはownerまたはBoltの`edit` accessが必要です。`/boltext access add-group <group> [accessType]` と `/boltext access remove-group <group>` は、Boltに登録されたグループを対象にします。`user` は `access` のaliasです。未保護ブロックを新規保護しません。
 
 - **/boltext entity `<set|public|private|transfer|unlock|access>` [args...]**
-  選択範囲にいる現在ロード済みの保護可能Entityを対象に、同等の保護操作を行います。Entity位置ごとにWorldGuardを確認します。
+  Entityだけに絞り込みたい場合の互換用コマンドです。通常は `entity` を付けずに実行すると、ブロックとEntityをまとめて操作します。
 
 - **/boltext audit invalid [page]**
   現在Boltでprotectableではないのに残っている既存Block Protectionを確認専用で表示します。

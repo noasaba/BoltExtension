@@ -131,14 +131,14 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         switch (subcommand) {
             case "public", "private" -> sendSummary(
                     player,
-                    operationService.setProtection(player, selection, subcommand, true),
+                    setProtection(player, selection, subcommand, true),
                     "更新"
             );
-            case "set" -> sendSummary(player, operationService.setProtection(player, selection, normalize(args[1]), true), "更新");
+            case "set" -> sendSummary(player, setProtection(player, selection, normalize(args[1]), true), "更新");
             case "transfer" -> handleTransfer(player, selection, args, true);
             case "unlock" -> sendSummary(
                     player,
-                    operationService.unlock(player, selection, false, true),
+                    unlock(player, selection, true),
                     "削除"
             );
             case "access" -> handleAccess(player, selection, args, 1, false, true);
@@ -223,9 +223,35 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         }
         sendSummary(
                 player,
-                operationService.transfer(player, selection, target, execute),
+                transfer(player, selection, target, execute),
                 execute ? "移譲" : "移譲予定"
         );
+    }
+
+    private OperationSummary setProtection(Player player, SelectionContext selection, String type, boolean execute) {
+        return merge(
+                operationService.setProtection(player, selection, type, execute),
+                entityOperationService.setProtection(player, selection, type, execute)
+        );
+    }
+
+    private OperationSummary transfer(Player player, SelectionContext selection, UUID target, boolean execute) {
+        return merge(
+                operationService.transfer(player, selection, target, execute),
+                entityOperationService.transfer(player, selection, target, execute)
+        );
+    }
+
+    private OperationSummary unlock(Player player, SelectionContext selection, boolean execute) {
+        return merge(
+                operationService.unlock(player, selection, false, execute),
+                entityOperationService.unlock(player, selection, execute)
+        );
+    }
+
+    private OperationSummary merge(OperationSummary blocks, OperationSummary entities) {
+        blocks.mergeFrom(entities, settings.maxErrorSamples());
+        return blocks;
     }
 
     private void handleAdminUnlock(Player player, SelectionContext selection, String[] args) {
@@ -280,15 +306,15 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         switch (target) {
             case "public", "private" -> sendSummary(
                     player,
-                    operationService.setProtection(player, selection, target, false),
+                    setProtection(player, selection, target, false),
                     "更新予定"
             );
             case "set" -> sendSummary(player,
-                    operationService.setProtection(player, selection, normalize(args[2]), false), "更新予定");
+                    setProtection(player, selection, normalize(args[2]), false), "更新予定");
             case "transfer" -> handleTransfer(player, selection, args, false);
             case "unlock" -> sendSummary(
                     player,
-                    operationService.unlock(player, selection, false, false),
+                    unlock(player, selection, false),
                     "削除予定"
             );
             case "access" -> handleAccess(player, selection, sliceScanArguments(args), 1, false, false);
@@ -488,7 +514,10 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
     ) {
         OperationSummary summary = entity
                 ? entityOperationService.changeAccessSource(player, selection, source, type, add, execute)
-                : operationService.changeAccessSource(player, selection, source, type, add, execute);
+                : merge(
+                        operationService.changeAccessSource(player, selection, source, type, add, execute),
+                        entityOperationService.changeAccessSource(player, selection, source, type, add, execute)
+                );
         sendSummary(player, summary, execute ? "アクセス更新" : "アクセス更新予定");
     }
 
