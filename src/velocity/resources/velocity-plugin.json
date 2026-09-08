@@ -1,0 +1,10 @@
+{
+  "id": "boltextension",
+  "name": "BoltExtension",
+  "version": "${version}",
+  "description": "Velocity companion for BoltExtension.",
+  "authors": [
+    "noasaba"
+  ],
+  "main": "com.noasaba.boltextension.velocity.VelocityBoltExtension"
+}

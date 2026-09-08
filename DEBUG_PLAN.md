@@ -2,6 +2,29 @@
 
 作成日: 2026-05-20
 
+## 2.0 再実装状況（2026-08-02）
+
+本計画をもとに、以下を再実装した。
+
+- lifecycle、コマンド、WorldEdit選択、WorldGuard判定、Bolt操作、集計モデルをクラス単位に分離。
+- 未保護ブロックの新規作成前に `BoltAPI.isProtectable` を必須化。
+- プレイヤー別の新規保護可否として、Boltに登録された保護タイプ、`bolt.type.protection.<type>`、ブロック設定の `lockPermission` と `bolt.protection.lock.<material>`、`LockBlockEvent` のキャンセル結果を個別に判定する。
+- 既存保護は `findProtection` と protection ID の重複排除を使い、通常操作を owner-only に統一。
+- WorldEditの実際の選択点だけを走査し、非直方体選択の外接範囲を誤操作しないよう変更。
+- WorldGuardの `ApplicableRegionSet` で、優先度、継承、region group、グローバルリージョンを含むフラグ計算を使用。
+- `bolt-extension-allow`、標準 `BUILD`、全リージョンのowner/member、標準bypassを個別設定可能にした。
+- 連結ブロックの代表Bolt保護が選択外にある場合、その代表ブロック側のWorldGuard判定も追加。
+- admin unlockを対象ID、選択スナップショット、期限に紐づけ、confirm直前に現在のIDを再検証。
+- dry-runの `scan`、ブロック診断の `inspect`、環境診断の `debug status`、操作ID、skip reason、失敗サンプルを追加。
+- JDK 25、Gradle 9.1.0、Paper API 26.1.2向けに更新し、Paper/Velocity成果物を別ディレクトリへ出すrelease taskを追加。
+
+検証状況:
+
+- `git diff --check`: 成功。
+- VelocityソースのJDK 25個別コンパイル: 成功。
+- Gradle 9.1.0がJDK 25対応であることを公式互換表と照合済み。
+- この実行環境ではGradleのユーザー領域書き込みと内部ロック通知ソケットが制限されるため、`./gradlew release` の完走確認は未実施。制限のない環境でreleaseビルドとPaper実サーバー試験が必要。
+
 ## 確認した範囲
 
 - `src/main/java/com/noasaba/boltextension/BoltExtension.java`
@@ -300,6 +323,10 @@ Bukkit/Paper のログ文脈に乗りにくく、ユーザー向けメッセー�
 - new protections to create
 - skipped not protectable
 - skipped no permission
+- `PROTECTION_TYPE_UNKNOWN`: Boltに存在しない保護タイプ
+- `PROTECTION_TYPE_DENIED`: 制限付き保護タイプの権限不足
+- `BLOCK_LOCK_PERMISSION_DENIED`: Material別lock権限不足
+- `LOCK_EVENT_CANCELLED`: Bolt連携イベントで作成が拒否された
 - skipped worldguard denied
 - skipped duplicate protection
 - failed blocks

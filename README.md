@@ -11,15 +11,33 @@
 ## 必要条件
 
 - **Minecraft サーバー (Paper, Spigot, Bukkit 互換)**
+- **Minecraft Java Edition 26.1.2**
+- **JDK 25 以降**
 - **WorldEdit プラグイン** (必須)
 - **Bolt プラグイン** (必須)
 - **WorldGuard プラグイン** (必須：WorldGuard のリージョン権限チェックに使用します)
 
 ## インストール方法
 
-1. `BoltExtension.jar` をサーバーの `plugins/` フォルダに配置します。
-2. サーバーを再起動またはリロードします。
-3. `plugins/BoltExtension/config.yml` を編集して、必要に応じた設定にカスタマイズしてください。
+1. Paper サーバーには `boltextension-paper-<version>.jar` を `plugins/` フォルダに配置します。
+2. Velocity を使う場合は `boltextension-velocity-<version>.jar` を Velocity の `plugins/` フォルダに配置します。
+3. Paper サーバーを再起動またはリロードします。
+4. `plugins/BoltExtension/config.yml` を編集して、必要に応じた設定にカスタマイズしてください。
+
+## リリース成果物
+
+`./gradlew release` を実行すると、成果物はプラットフォーム別に出力されます。
+
+~~~text
+build/release/
+  paper/
+    boltextension-paper-<version>.jar
+  velocity/
+    boltextension-velocity-<version>.jar
+~~~
+
+Paper jar は実際の WorldEdit / WorldGuard / Bolt 連携と `/boltext` コマンドを提供します。Velocity jar は proxy 側 companion です。
+Paper API は `26.1.2` を参照し、`plugin.yml` のAPI世代は `26.1` として宣言します。
 
 ## 設定ファイル (`config.yml`)
 
@@ -30,9 +48,22 @@ worldguard:
   enabled: true         # WorldGuard を使用するかどうか
   flag-default: true    # フラグのデフォルト値（true = ALLOW, false = DENY）
   allow-no-region: false  # WorldGuard 管理外の領域も許可するか
+  require-build-access: true  # WorldGuard の有効な BUILD 判定も要求するか
+  require-membership: true  # 重なる全リージョンで owner/member を要求するか
 ~~~
 
+リージョン単位でBoltExtensionだけを許可・拒否する場合は、WorldGuardで次のように設定します。
+
+~~~text
+/rg flag <region> bolt-extension-allow allow
+/rg flag <region> bolt-extension-allow deny
+~~~
+
+通常操作は、有効な `bolt-extension-allow`、WorldGuardの `BUILD`、必要なら全リージョンのowner/memberを順に確認します。リージョンデータを読み込めない場合は、設定にかかわらず安全側で拒否します。
+
 ## コマンド一覧
+
+権限、使い方、具体例は [command.md](command.md) にまとめています。
 
 - **/boltext public**  
   選択範囲内の自分が所有する保護を「public」に変更します。未保護かつ Bolt が保護対象として扱うブロックには新規保護を作成します。
@@ -55,6 +86,9 @@ worldguard:
 - **/boltext inspect**  
   見ているブロックの Bolt 保護対象判定、既存保護、所有者一致、WorldGuard 判定を表示します。
 
+- **/boltext debug status**
+  Java、サーバー、依存プラグイン、WorldGuard連携設定の状態を表示します。
+
 - **/boltext scan `<public|private|transfer|unlock|admin unlock>` [args...]**  
   実行せずに、選択範囲内で何件が対象・スキップ・失敗になりそうかを確認します。
 
@@ -64,6 +98,9 @@ worldguard:
 - `max-volume` を `0` 以下にすると、範囲サイズ制限を無効化します。
 - 通常コマンドは対象保護の owner のみ実行できます。
 - 対象エリアの WorldGuard 権限設定（フラグ、オーナー・メンバー設定等）も考慮されます。
+- WorldGuard の `bolt-extension-allow` と有効な `BUILD` 判定を使い、リージョンの優先度・継承・region groupを反映します。
+- 非直方体のWorldEdit選択では、外接直方体ではなく実際に選択されたブロックだけを処理します。
+- ドアや連結チェストなどの代表保護が選択外にある場合、その代表ブロック側のWorldGuard権限も確認します。
 - 管理者コマンドは WorldGuard と owner 判定をバイパスします。誤操作による他プレイヤーの保護データ削除を防ぐため、確認手順が必須となっています。
 
 ## 開発者情報

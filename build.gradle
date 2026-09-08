@@ -3,10 +3,14 @@ plugins {
 }
 
 group = 'com.noasaba'
-version = '1.1-SNAPSHOT'
+version = '2.0.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+    maven {
+        name = "papermc"
+        url = "https://repo.papermc.io/repository/maven-public/"
+    }
     maven {
         name = "spigotmc-repo"
         url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
@@ -25,16 +29,28 @@ repositories {
     }
 }
 
+sourceSets {
+    velocity
+}
+
 dependencies {
-    compileOnly("org.spigotmc:spigot-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
     compileOnly("org.popcraft:bolt-bukkit:1.1.52")
+    compileOnly("net.kyori:event-api:3.0.0")
     // https://mvnrepository.com/artifact/com.sk89q.worldedit/worldedit-bukkit
-    compileOnly group: 'com.sk89q.worldedit', name: 'worldedit-bukkit', version: '7.3.10'
-    compileOnly group: 'com.sk89q.worldguard', name: 'worldguard-bukkit', version: '7.0.13'
+    compileOnly(group: 'com.sk89q.worldedit', name: 'worldedit-bukkit', version: '7.4.3') {
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-bom'
+    }
+    compileOnly(group: 'com.sk89q.worldguard', name: 'worldguard-bukkit', version: '7.0.17') {
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-bom'
+    }
+    velocityCompileOnly("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
 
 }
 
-def targetJavaVersion = 21
+def targetJavaVersion = 25
+def releaseDir = layout.buildDirectory.dir("release")
+
 java {
     def javaVersion = JavaVersion.toVersion(targetJavaVersion)
     sourceCompatibility = javaVersion
@@ -59,4 +75,49 @@ processResources {
     filesMatching('plugin.yml') {
         expand props
     }
+}
+
+tasks.named('processVelocityResources') {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('velocity-plugin.json') {
+        expand props
+    }
+}
+
+tasks.register('paperJar', Jar) {
+    group = 'build'
+    description = 'Builds the Paper plugin jar.'
+    archiveBaseName.set('boltextension-paper')
+    from sourceSets.main.output
+}
+
+tasks.register('velocityJar', Jar) {
+    group = 'build'
+    description = 'Builds the Velocity plugin jar.'
+    archiveBaseName.set('boltextension-velocity')
+    from sourceSets.velocity.output
+}
+
+tasks.register('releasePaper', Copy) {
+    group = 'distribution'
+    description = 'Copies the Paper jar into build/release/paper.'
+    dependsOn tasks.named('paperJar')
+    from tasks.named('paperJar')
+    into releaseDir.map { it.dir('paper') }
+}
+
+tasks.register('releaseVelocity', Copy) {
+    group = 'distribution'
+    description = 'Copies the Velocity jar into build/release/velocity.'
+    dependsOn tasks.named('velocityJar')
+    from tasks.named('velocityJar')
+    into releaseDir.map { it.dir('velocity') }
+}
+
+tasks.register('release') {
+    group = 'distribution'
+    description = 'Builds release artifacts split by platform.'
+    dependsOn tasks.named('releasePaper'), tasks.named('releaseVelocity')
 }

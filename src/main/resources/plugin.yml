@@ -1,17 +1,29 @@
 name: BoltExtension
 version: ${version}
 main: com.noasaba.boltextension.BoltExtension
-api-version: "1.20"
+api-version: "26.1"
 authors: [ "noasaba" ]
 description: "Bolt + WorldEdit + WorldGuard で保護の一括操作"
 depend: [ "WorldEdit", "Bolt", "WorldGuard" ]
 
 commands:
   boltext:
-    description: "WorldEdit範囲内の保護を一括操作 (public/private/transfer/unlock/admin/confirm/inspect/scan)"
-    usage: "/boltext <public|private|transfer|unlock|admin|confirm|inspect|scan> [args...]"
+    description: "WorldEdit範囲内のBolt保護を一括操作・診断"
+    usage: "/boltext <public|private|transfer|unlock|inspect|scan|admin|confirm|debug> [args...]"
 
 permissions:
+  bolt.extension.use:
+    default: true
+    description: "自分がownerのBolt保護を一括操作する権限"
+  bolt.extension.scan:
+    default: true
+    description: "一般操作をdry-runで事前確認する権限"
+  bolt.extension.inspect:
+    default: op
+    description: "ブロックのBolt/WorldGuard判定を診断する権限"
+  bolt.extension.debug:
+    default: op
+    description: "依存関係や設定のデバッグ情報を確認する権限"
   bolt.extension.admin:
     default: op
-    description: "他人の保護も削除できるadmin操作を実行できる権限"
+    description: "ownerとWorldGuardをバイパスして保護を削除する権限"
