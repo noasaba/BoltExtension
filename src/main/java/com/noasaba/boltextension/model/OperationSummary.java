@@ -19,6 +19,7 @@ public final class OperationSummary {
 
     private long scanned;
     private long created;
+    private long potentialCreated;
     private long changed;
     private long transferred;
     private long removed;
@@ -34,6 +35,10 @@ public final class OperationSummary {
 
     public void created() {
         created++;
+    }
+
+    public void potentialCreated() {
+        potentialCreated++;
     }
 
     public void changed() {
@@ -79,6 +84,7 @@ public final class OperationSummary {
         return "ID " + operationId +
                 " | 走査 " + scanned +
                 ", 作成 " + created +
+                ", 作成見込み " + potentialCreated +
                 ", 変更 " + changed +
                 ", 移譲 " + transferred +
                 ", 削除 " + removed;

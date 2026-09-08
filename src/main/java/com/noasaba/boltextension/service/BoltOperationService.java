@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.CompletableFuture;
 
 public final class BoltOperationService {
 
@@ -87,7 +88,7 @@ public final class BoltOperationService {
             SkipReason eligibility = eligibilityService.checkNewProtection(player, block, type, execute);
             if (eligibility == SkipReason.LOCK_EVENT_NOT_EVALUATED) {
                 summary.skip(eligibility);
-                summary.created();
+                summary.potentialCreated();
                 return;
             }
             if (eligibility != null) {
@@ -261,12 +262,20 @@ public final class BoltOperationService {
         return eligibilityService.protectionTypes();
     }
 
-    public Optional<String> resolveKnownGroup(String name) {
-        return eligibilityService.resolveKnownGroup(name);
+    public CompletableFuture<Optional<String>> resolveKnownGroupAsync(String name) {
+        return eligibilityService.resolveKnownGroupAsync(name);
     }
 
     public String groupSource(String name) {
         return eligibilityService.groupSource(name);
+    }
+
+    public List<String> accessTypes() {
+        return eligibilityService.accessTypes();
+    }
+
+    public List<String> ownedGroups(Player player) {
+        return eligibilityService.ownedGroups(player);
     }
 
     public AdminUnlockPlan prepareAdminUnlock(Player player, SelectionContext selection) {

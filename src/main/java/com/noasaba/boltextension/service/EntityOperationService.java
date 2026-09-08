@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import org.popcraft.bolt.BoltAPI;
 import org.popcraft.bolt.protection.EntityProtection;
 import org.popcraft.bolt.protection.Protection;
+import org.popcraft.bolt.source.Source;
 import org.popcraft.bolt.util.Permission;
 
 import java.util.UUID;
@@ -78,7 +79,7 @@ public final class EntityOperationService {
             SkipReason eligibility = eligibilityService.checkNewProtection(player, entity, type, execute);
             if (eligibility == SkipReason.LOCK_EVENT_NOT_EVALUATED) {
                 summary.skip(eligibility);
-                summary.created();
+                summary.potentialCreated();
                 return;
             }
             if (eligibility != null) {
@@ -145,6 +146,71 @@ public final class EntityOperationService {
                 bolt.removeProtection(protection);
             }
             summary.removed();
+        });
+    }
+
+    public OperationSummary changeAccess(
+            Player player,
+            SelectionContext selection,
+            UUID target,
+            String accessType,
+            boolean add,
+            boolean execute
+    ) {
+        return changeAccessSource(player, selection, Source.player(target).toString(), accessType, add, execute);
+    }
+
+    public OperationSummary changeAccessSource(
+            Player player,
+            SelectionContext selection,
+            String source,
+            String accessType,
+            boolean add,
+            boolean execute
+    ) {
+        return run(player, selection, (entity, summary) -> {
+            Protection protection = bolt.findProtection(entity);
+            if (protection == null) {
+                summary.skip(SkipReason.NO_PROTECTION);
+                return;
+            }
+            if (!summary.markProcessed(protection)) {
+                summary.skip(SkipReason.DUPLICATE_PROTECTION);
+                return;
+            }
+            if (!canEdit(player, protection)) {
+                summary.skip(SkipReason.EDIT_ACCESS_DENIED);
+                return;
+            }
+            if (!hasWorldGuardAccess(player, entity, summary)) {
+                return;
+            }
+            if (add) {
+                SkipReason typeDecision = eligibilityService.checkAccessType(player, accessType);
+                if (typeDecision != null) {
+                    summary.skip(typeDecision);
+                    return;
+                }
+                if (accessType.equals(protection.getAccess().get(source))) {
+                    summary.skip(SkipReason.ACCESS_ALREADY_SET);
+                    return;
+                }
+                if (execute) {
+                    protection.getAccess().put(source, accessType);
+                    bolt.saveProtection(protection);
+                }
+                summary.changed();
+                return;
+            }
+            if (!protection.getAccess().containsKey(source)) {
+                summary.skip(SkipReason.ACCESS_NOT_PRESENT);
+                return;
+            }
+            if (execute) {
+                protection.getAccess().remove(source);
+                bolt.saveProtection(protection);
+            }
+            summary.changed();
         });
     }
 

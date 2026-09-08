@@ -13,6 +13,7 @@ import org.popcraft.bolt.util.ProtectableConfig;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class BoltProtectionEligibilityService {
 
@@ -116,13 +117,10 @@ public final class BoltProtectionEligibilityService {
         return bolt.getBolt().getAccessRegistry().protectionTypes().stream().sorted().toList();
     }
 
-    public Optional<String> resolveKnownGroup(String name) {
-        try {
-            return Optional.ofNullable(bolt.getBolt().getStore().loadGroup(name).join())
-                    .map(group -> group.getName());
-        } catch (RuntimeException exception) {
-            return Optional.empty();
-        }
+    public CompletableFuture<Optional<String>> resolveKnownGroupAsync(String name) {
+        return bolt.getBolt().getStore().loadGroup(name)
+                .thenApply(group -> Optional.ofNullable(group).map(value -> value.getName()))
+                .exceptionally(exception -> Optional.empty());
     }
 
     public String groupSource(String name) {
@@ -131,5 +129,13 @@ public final class BoltProtectionEligibilityService {
 
     public Optional<UUID> resolveKnownPlayer(String name) {
         return Optional.ofNullable(bolt.getProfileCache().getProfile(name)).map(profile -> profile.uuid());
+    }
+
+    public java.util.List<String> accessTypes() {
+        return bolt.getBolt().getAccessRegistry().accessTypes().stream().sorted().toList();
+    }
+
+    public java.util.List<String> ownedGroups(Player player) {
+        return bolt.getPlayersOwnedGroups(player).stream().sorted().toList();
     }
 }

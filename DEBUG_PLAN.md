@@ -23,7 +23,8 @@
 - `/boltext set <protectionType>` と対応するscanで、Boltの登録済み任意protection typeを指定できるようにする。
 - 既存保護のtype変更とaccess変更は、ownerに加えてBoltの `edit` accessを持つ利用者にも許可する。譲渡と解除はowner-onlyのまま維持する。
 - Bolt Storeに存在確認できるグループだけを `group:<name>` Sourceとして追加・削除する。パスワードはコマンド履歴・ログ・監査プラグインへ残る危険があるため、CLI引数では扱わない。
-- `/boltext entity <set|public|private|transfer|unlock>` と対応するscanを追加し、選択範囲内の現在ロード済みEntityだけを処理する。新規保護の可否、type、Entity lock permission、`LockEntityEvent`、WorldGuardをEntityごとに確認する。
+- `/boltext entity <set|public|private|transfer|unlock|access>` と対応するscanを追加し、選択範囲内の現在ロード済みEntityだけを処理する。新規保護の可否、type、Entity lock permission、`LockEntityEvent`、WorldGuardをEntityごとに確認する。
+- group SourceはBolt Storeの非同期照会で存在確認し、完了後にサーバースレッドで操作する。`scan`のイベント未評価分は「作成見込み」として別集計する。
 
 残る実サーバー確認:
 

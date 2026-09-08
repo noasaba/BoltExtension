@@ -86,7 +86,7 @@ permissions:
 - **/boltext access add `<player>` [accessType]** / **/boltext access remove `<player>`**
   既存保護のaccess listだけを変更します。操作にはownerまたはBoltの`edit` accessが必要です。`/boltext access add-group <group> [accessType]` と `/boltext access remove-group <group>` は、Boltに登録されたグループを対象にします。`user` は `access` のaliasです。未保護ブロックを新規保護しません。
 
-- **/boltext entity `<set|public|private|transfer|unlock>` [args...]**
+- **/boltext entity `<set|public|private|transfer|unlock|access>` [args...]**
   選択範囲にいる現在ロード済みの保護可能Entityを対象に、同等の保護操作を行います。Entity位置ごとにWorldGuardを確認します。
 
 - **/boltext audit invalid [page]**
@@ -117,7 +117,7 @@ permissions:
 - 非直方体のWorldEdit選択では、外接直方体ではなく実際に選択されたブロックだけを処理します。
 - ドアや連結チェストなどの代表保護が選択外にある場合、その代表ブロック側のWorldGuard権限も確認します。
 - 管理者のunlockだけがowner判定をバイパスできます。WorldGuard判定はバイパスせず、誤操作防止の確認手順と削除直前の再検証を必須にしています。
-- `scan` は変更を行いません。新規作成については外部プラグインがキャンセルできる`LockBlockEvent`を発火しないため、`LOCK_EVENT_NOT_EVALUATED`が表示された件数は本実行時に変わる可能性があります。
+- `scan` は変更を行いません。新規作成については外部プラグインがキャンセルできるLockイベントを発火しないため、表示される「作成見込み」と`LOCK_EVENT_NOT_EVALUATED`の件数は本実行時に変わる可能性があります。
 - Entity操作は選択範囲内で現在ロード済みのEntityだけを対象にします。チャンクを強制ロードしません。
 
 ## 開発者情報

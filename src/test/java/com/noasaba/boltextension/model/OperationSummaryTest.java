@@ -1,0 +1,18 @@
+package com.noasaba.boltextension.model;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class OperationSummaryTest {
+
+    @Test
+    void reportsPotentialCreationSeparatelyFromConfirmedCreation() {
+        OperationSummary summary = new OperationSummary();
+        summary.created();
+        summary.potentialCreated();
+
+        assertTrue(summary.describeMain().contains("作成 1"));
+        assertTrue(summary.describeMain().contains("作成見込み 1"));
+    }
+}

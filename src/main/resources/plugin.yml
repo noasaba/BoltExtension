@@ -26,6 +26,8 @@ permissions:
       bolt.extension.entity.set: true
       bolt.extension.entity.transfer: true
       bolt.extension.entity.unlock: true
+      bolt.extension.entity.access.add: true
+      bolt.extension.entity.access.remove: true
   bolt.extension.private:
     default: false
     description: "private保護の一括作成・変更"
@@ -56,6 +58,12 @@ permissions:
   bolt.extension.entity.unlock:
     default: false
     description: "自分がownerのEntity保護を一括解除"
+  bolt.extension.entity.access.add:
+    default: false
+    description: "Entity保護にアクセスを追加"
+  bolt.extension.entity.access.remove:
+    default: false
+    description: "Entity保護からアクセスを削除"
   bolt.extension.scan:
     default: false
     description: "一般操作をdry-runで事前確認する権限"
