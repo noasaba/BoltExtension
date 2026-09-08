@@ -20,23 +20,20 @@
 ## インストール方法
 
 1. Paper サーバーには `boltextension-paper-<version>.jar` を `plugins/` フォルダに配置します。
-2. Velocity を使う場合は `boltextension-velocity-<version>.jar` を Velocity の `plugins/` フォルダに配置します。
-3. Paper サーバーを再起動またはリロードします。
-4. `plugins/BoltExtension/config.yml` を編集して、必要に応じた設定にカスタマイズしてください。
+2. Paper サーバーを再起動またはリロードします。
+3. `plugins/BoltExtension/config.yml` を編集して、必要に応じた設定にカスタマイズしてください。
 
 ## リリース成果物
 
-`./gradlew release` を実行すると、成果物はプラットフォーム別に出力されます。
+`./gradlew release` を実行すると、Paper用成果物が出力されます。
 
 ~~~text
 build/release/
   paper/
     boltextension-paper-<version>.jar
-  velocity/
-    boltextension-velocity-<version>.jar
 ~~~
 
-Paper jar は実際の WorldEdit / WorldGuard / Bolt 連携と `/boltext` コマンドを提供します。Velocity jar は現時点ではロード通知だけを行うstubです。保護操作・同期・認可はすべてPaper側で実行されます。
+Paper jar は実際の WorldEdit / WorldGuard / Bolt 連携と `/boltext` コマンドを提供します。保護操作・同期・認可はすべてPaper側で実行されます。
 Paper API は `26.1.2` を参照し、`plugin.yml` のAPI世代は `26.1` として宣言します。
 
 ## 設定ファイル (`config.yml`)

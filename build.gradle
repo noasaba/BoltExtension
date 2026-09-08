@@ -29,10 +29,6 @@ repositories {
     }
 }
 
-sourceSets {
-    velocity
-}
-
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
     compileOnly("org.popcraft:bolt-bukkit:1.2.22")
@@ -44,7 +40,6 @@ dependencies {
     compileOnly(group: 'com.sk89q.worldguard', name: 'worldguard-bukkit', version: '7.0.17') {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-bom'
     }
-    velocityCompileOnly("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
     testImplementation("io.papermc.paper:paper-api:26.1.2.build.74-stable")
@@ -85,27 +80,11 @@ processResources {
     }
 }
 
-tasks.named('processVelocityResources') {
-    def props = [version: version]
-    inputs.properties props
-    filteringCharset 'UTF-8'
-    filesMatching('velocity-plugin.json') {
-        expand props
-    }
-}
-
 tasks.register('paperJar', Jar) {
     group = 'build'
     description = 'Builds the Paper plugin jar.'
     archiveBaseName.set('boltextension-paper')
     from sourceSets.main.output
-}
-
-tasks.register('velocityJar', Jar) {
-    group = 'build'
-    description = 'Builds the Velocity plugin jar.'
-    archiveBaseName.set('boltextension-velocity')
-    from sourceSets.velocity.output
 }
 
 tasks.register('releasePaper', Copy) {
@@ -116,16 +95,8 @@ tasks.register('releasePaper', Copy) {
     into releaseDir.map { it.dir('paper') }
 }
 
-tasks.register('releaseVelocity', Copy) {
-    group = 'distribution'
-    description = 'Copies the Velocity jar into build/release/velocity.'
-    dependsOn tasks.named('velocityJar')
-    from tasks.named('velocityJar')
-    into releaseDir.map { it.dir('velocity') }
-}
-
 tasks.register('release') {
     group = 'distribution'
-    description = 'Builds release artifacts split by platform.'
-    dependsOn tasks.named('releasePaper'), tasks.named('releaseVelocity')
+    description = 'Builds the Paper release artifact.'
+    dependsOn tasks.named('releasePaper')
 }
