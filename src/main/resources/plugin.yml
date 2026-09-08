@@ -9,14 +9,39 @@ depend: [ "WorldEdit", "Bolt", "WorldGuard" ]
 commands:
   boltext:
     description: "WorldEdit範囲内のBolt保護を一括操作・診断"
-    usage: "/boltext <public|private|transfer|unlock|inspect|scan|admin|confirm|debug> [args...]"
+    usage: "/boltext <public|private|transfer|unlock|access|user|audit|inspect|scan|admin|confirm|debug> [args...]"
 
 permissions:
   bolt.extension.use:
-    default: true
-    description: "自分がownerのBolt保護を一括操作する権限"
+    default: false
+    description: "一般操作権限の親ノード"
+    children:
+      bolt.extension.private: true
+      bolt.extension.public: true
+      bolt.extension.transfer: true
+      bolt.extension.unlock: true
+      bolt.extension.access.add: true
+      bolt.extension.access.remove: true
+  bolt.extension.private:
+    default: false
+    description: "private保護の一括作成・変更"
+  bolt.extension.public:
+    default: false
+    description: "public保護の一括作成・変更"
+  bolt.extension.transfer:
+    default: false
+    description: "自分の保護の一括譲渡"
+  bolt.extension.unlock:
+    default: false
+    description: "自分の保護の一括解除"
+  bolt.extension.access.add:
+    default: false
+    description: "自分の保護にアクセスを追加"
+  bolt.extension.access.remove:
+    default: false
+    description: "自分の保護からアクセスを削除"
   bolt.extension.scan:
-    default: true
+    default: false
     description: "一般操作をdry-runで事前確認する権限"
   bolt.extension.inspect:
     default: op
@@ -24,6 +49,12 @@ permissions:
   bolt.extension.debug:
     default: op
     description: "依存関係や設定のデバッグ情報を確認する権限"
-  bolt.extension.admin:
+  bolt.extension.audit:
     default: op
-    description: "ownerとWorldGuardをバイパスして保護を削除する権限"
+    description: "不正な既存Protectionを監査"
+  bolt.extension.admin.unlock:
+    default: op
+    description: "他人の保護を確認付きで解除する権限"
+  bolt.extension.admin.access:
+    default: op
+    description: "他人の保護のアクセスを管理するための予約権限"

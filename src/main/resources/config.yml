@@ -7,7 +7,8 @@ max-volume: 1000000
 confirmation-timeout-seconds: 60
 
 worldguard:
-  enabled: true
+  # Enables BoltExtension's authorization checks. WorldGuard itself remains a required plugin.
+  checks-enabled: true
 
   # Default when bolt-extension-allow is not explicitly set on a region.
   flag-default: true
@@ -24,6 +25,10 @@ worldguard:
 
   # Honor worldguard.region.bypass.<world> and worldguard.region.bypass.*.
   honor-bypass-permission: true
+
+permissions:
+  # Require the corresponding Bolt command permission in addition to BoltExtension's permission.
+  require-bolt-command-permissions: true
 
 logging:
   # Log operation IDs, selections, dry-run state, and summaries.

@@ -5,6 +5,7 @@ import com.noasaba.boltextension.config.PluginSettings;
 import com.noasaba.boltextension.model.AccessDecision;
 import com.noasaba.boltextension.model.AdminUnlockPlan;
 import com.noasaba.boltextension.model.BoltInspection;
+import com.noasaba.boltextension.model.InvalidProtection;
 import com.noasaba.boltextension.model.OperationSummary;
 import com.noasaba.boltextension.model.SelectionContext;
 import com.noasaba.boltextension.service.BoltOperationService;
@@ -31,11 +32,17 @@ import java.util.logging.Level;
 
 public final class BoltextCommand implements CommandExecutor, TabCompleter {
 
-    public static final String PERMISSION_USE = "bolt.extension.use";
+    public static final String PERMISSION_PRIVATE = "bolt.extension.private";
+    public static final String PERMISSION_PUBLIC = "bolt.extension.public";
+    public static final String PERMISSION_TRANSFER = "bolt.extension.transfer";
+    public static final String PERMISSION_UNLOCK = "bolt.extension.unlock";
+    public static final String PERMISSION_ACCESS_ADD = "bolt.extension.access.add";
+    public static final String PERMISSION_ACCESS_REMOVE = "bolt.extension.access.remove";
     public static final String PERMISSION_SCAN = "bolt.extension.scan";
     public static final String PERMISSION_INSPECT = "bolt.extension.inspect";
     public static final String PERMISSION_DEBUG = "bolt.extension.debug";
-    public static final String PERMISSION_ADMIN = "bolt.extension.admin";
+    public static final String PERMISSION_AUDIT = "bolt.extension.audit";
+    public static final String PERMISSION_ADMIN_UNLOCK = "bolt.extension.admin.unlock";
 
     private final BoltExtension plugin;
     private final PluginSettings settings;
@@ -70,11 +77,17 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         }
 
         String subcommand = normalize(args[0]);
+        if ("user".equals(subcommand)) {
+            args = args.clone();
+            args[0] = "access";
+            subcommand = "access";
+        }
         try {
             return switch (subcommand) {
                 case "inspect" -> handleInspect(player);
                 case "debug" -> handleDebug(player, args);
                 case "confirm" -> handleConfirm(player);
+                case "audit" -> handleAudit(player, args);
                 default -> handleSelectionCommand(player, subcommand, args);
             };
         } catch (IncompleteRegionException exception) {
@@ -105,18 +118,6 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        boolean adminBypass = isAdminUnlock(args);
-        if (!adminBypass) {
-            AccessDecision access = worldGuardService.checkSelection(player, selection);
-            if (!access.allowed()) {
-                player.sendMessage(ChatColor.RED + "WorldGuardによりこの範囲での操作が拒否されました");
-                if (player.hasPermission(PERMISSION_DEBUG)) {
-                    player.sendMessage(ChatColor.GRAY + access.describe());
-                }
-                return true;
-            }
-        }
-
         switch (subcommand) {
             case "public", "private" -> sendSummary(
                     player,
@@ -129,6 +130,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                     operationService.unlock(player, selection, false, true),
                     "削除"
             );
+            case "access" -> handleAccess(player, selection, args, true);
             case "admin" -> handleAdminUnlock(player, selection, args);
             case "scan" -> handleScan(player, selection, args);
             default -> {
@@ -202,14 +204,14 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                     : "使い方: /boltext scan transfer <targetPlayer>"));
             return;
         }
-        Player target = Bukkit.getPlayerExact(args[targetIndex]);
+        UUID target = resolveKnownPlayer(args[targetIndex]);
         if (target == null) {
-            player.sendMessage(ChatColor.RED + "指定されたプレイヤーはオンラインではありません");
+            player.sendMessage(ChatColor.RED + "Boltに登録済みのプレイヤー名を指定してください");
             return;
         }
         sendSummary(
                 player,
-                operationService.transfer(player, selection, target.getUniqueId(), execute),
+                operationService.transfer(player, selection, target, execute),
                 execute ? "移譲" : "移譲予定"
         );
     }
@@ -223,13 +225,13 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
             return;
         }
         pendingAdminUnlocks.put(player.getUniqueId(), plan);
-        player.sendMessage(ChatColor.YELLOW + "警告: ownerとWorldGuardを無視して削除します。" +
+        player.sendMessage(ChatColor.YELLOW + "警告: ownerを問わず削除します。WorldGuardは削除時にも確認します。" +
                 settings.confirmationTimeoutMillis() / 1_000L + "秒以内に /boltext confirm を実行してください");
         sendSummary(player, plan.preview(), "削除予定");
     }
 
     private boolean handleConfirm(Player player) {
-        if (!requirePermission(player, PERMISSION_ADMIN)) {
+        if (!requireOperationPermissions(player, PERMISSION_ADMIN_UNLOCK, "bolt.command.admin")) {
             return true;
         }
         AdminUnlockPlan plan = pendingAdminUnlocks.remove(player.getUniqueId());
@@ -242,8 +244,18 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        try {
+            SelectionContext current = selectionService.selection(player);
+            if (!plan.selection().world().equals(current.world()) || !plan.selection().region().equals(current.region())) {
+                player.sendMessage(ChatColor.RED + "WorldEdit選択範囲が変更されています。admin unlockからやり直してください");
+                return true;
+            }
+        } catch (IncompleteRegionException exception) {
+            player.sendMessage(ChatColor.RED + "WorldEditの範囲選択が不完全です。admin unlockからやり直してください");
+            return true;
+        }
         player.sendMessage(ChatColor.GRAY + "対象範囲: " + plan.selection().describe());
-        sendSummary(player, operationService.executeAdminUnlock(plan), "削除");
+        sendSummary(player, operationService.executeAdminUnlock(player, plan), "削除");
         return true;
     }
 
@@ -265,6 +277,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                     operationService.unlock(player, selection, false, false),
                     "削除予定"
             );
+            case "access" -> handleAccess(player, selection, sliceScanArguments(args), false);
             case "admin" -> {
                 if (args.length < 3 || !"unlock".equalsIgnoreCase(args[2])) {
                     player.sendMessage(ChatColor.RED + "使い方: /boltext scan admin unlock");
@@ -282,11 +295,15 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
 
     private boolean hasCommandPermission(Player player, String subcommand, String[] args) {
         return switch (subcommand) {
-            case "public", "private", "transfer", "unlock" -> requirePermission(player, PERMISSION_USE);
-            case "admin" -> requirePermission(player, PERMISSION_ADMIN);
+            case "public" -> requireOperationPermissions(player, PERMISSION_PUBLIC, "bolt.command.lock");
+            case "private" -> requireOperationPermissions(player, PERMISSION_PRIVATE, "bolt.command.lock");
+            case "transfer" -> requireOperationPermissions(player, PERMISSION_TRANSFER, "bolt.command.transfer");
+            case "unlock" -> requireOperationPermissions(player, PERMISSION_UNLOCK, "bolt.command.unlock");
+            case "access" -> accessPermission(player, args, false);
+            case "admin" -> requireOperationPermissions(player, PERMISSION_ADMIN_UNLOCK, "bolt.command.admin");
             case "scan" -> isAdminScan(args)
-                    ? requirePermission(player, PERMISSION_ADMIN)
-                    : requirePermission(player, PERMISSION_SCAN);
+                    ? requireOperationPermissions(player, PERMISSION_ADMIN_UNLOCK, "bolt.command.admin")
+                    : requirePermission(player, PERMISSION_SCAN) && scanTargetPermission(player, args);
             default -> true;
         };
     }
@@ -295,6 +312,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         return switch (subcommand) {
             case "public", "private", "unlock" -> true;
             case "transfer" -> validateTransferTarget(player, args, 1, "/boltext transfer <targetPlayer>");
+            case "access" -> validateAccessArguments(player, args, 1, "/boltext access <add|remove> <player> [accessType]");
             case "admin" -> {
                 if (args.length < 2 || !"unlock".equalsIgnoreCase(args[1])) {
                     player.sendMessage(ChatColor.RED + "使い方: /boltext admin unlock");
@@ -326,6 +344,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
                     2,
                     "/boltext scan transfer <targetPlayer>"
             );
+            case "access" -> validateAccessArguments(player, args, 2, "/boltext scan access <add|remove> <player> [accessType]");
             case "admin" -> {
                 if (args.length < 3 || !"unlock".equalsIgnoreCase(args[2])) {
                     player.sendMessage(ChatColor.RED + "使い方: /boltext scan admin unlock");
@@ -345,8 +364,8 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(ChatColor.RED + "使い方: " + usage);
             return false;
         }
-        if (Bukkit.getPlayerExact(args[index]) == null) {
-            player.sendMessage(ChatColor.RED + "指定されたプレイヤーはオンラインではありません");
+        if (resolveKnownPlayer(args[index]) == null) {
+            player.sendMessage(ChatColor.RED + "Boltに登録済みのプレイヤー名を指定してください");
             return false;
         }
         return true;
@@ -360,10 +379,92 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
-    private boolean isAdminUnlock(String[] args) {
-        return (args.length >= 2 && "admin".equalsIgnoreCase(args[0]) && "unlock".equalsIgnoreCase(args[1])) ||
-                (args.length >= 3 && "scan".equalsIgnoreCase(args[0]) &&
-                        "admin".equalsIgnoreCase(args[1]) && "unlock".equalsIgnoreCase(args[2]));
+    private boolean requireOperationPermissions(Player player, String extensionPermission, String boltPermission) {
+        return requirePermission(player, extensionPermission)
+                && (!settings.requireBoltCommandPermissions() || requirePermission(player, boltPermission));
+    }
+
+    private boolean accessPermission(Player player, String[] args, boolean scan) {
+        int actionIndex = scan ? 2 : 1;
+        if (args.length <= actionIndex) {
+            return true;
+        }
+        String permission = "add".equalsIgnoreCase(args[actionIndex])
+                ? PERMISSION_ACCESS_ADD : PERMISSION_ACCESS_REMOVE;
+        return requireOperationPermissions(player, permission, "bolt.command.edit");
+    }
+
+    private boolean scanTargetPermission(Player player, String[] args) {
+        if (args.length < 2) {
+            return true;
+        }
+        return switch (normalize(args[1])) {
+            case "public" -> requireOperationPermissions(player, PERMISSION_PUBLIC, "bolt.command.lock");
+            case "private" -> requireOperationPermissions(player, PERMISSION_PRIVATE, "bolt.command.lock");
+            case "transfer" -> requireOperationPermissions(player, PERMISSION_TRANSFER, "bolt.command.transfer");
+            case "unlock" -> requireOperationPermissions(player, PERMISSION_UNLOCK, "bolt.command.unlock");
+            case "access" -> accessPermission(player, args, true);
+            default -> true;
+        };
+    }
+
+    private boolean validateAccessArguments(Player player, String[] args, int actionIndex, String usage) {
+        if (args.length <= actionIndex + 1 || (!"add".equalsIgnoreCase(args[actionIndex]) && !"remove".equalsIgnoreCase(args[actionIndex]))) {
+            player.sendMessage(ChatColor.RED + "使い方: " + usage);
+            return false;
+        }
+        return validateTransferTarget(player, args, actionIndex + 1, usage);
+    }
+
+    private void handleAccess(Player player, SelectionContext selection, String[] args, boolean execute) {
+        int actionIndex = execute ? 1 : 1;
+        int targetIndex = actionIndex + 1;
+        boolean add = "add".equalsIgnoreCase(args[actionIndex]);
+        UUID target = resolveKnownPlayer(args[targetIndex]);
+        String type = add && args.length > targetIndex + 1
+                ? normalize(args[targetIndex + 1]) : operationService.defaultAccessType();
+        sendSummary(player, operationService.changeAccess(player, selection, target, type, add, execute),
+                execute ? "アクセス更新" : "アクセス更新予定");
+    }
+
+    private String[] sliceScanArguments(String[] args) {
+        String[] sliced = new String[args.length - 1];
+        sliced[0] = "access";
+        System.arraycopy(args, 2, sliced, 1, args.length - 2);
+        return sliced;
+    }
+
+    private UUID resolveKnownPlayer(String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        return online != null ? online.getUniqueId() : operationService.resolveKnownPlayer(name).orElse(null);
+    }
+
+    private boolean handleAudit(Player player, String[] args) {
+        if (!requirePermission(player, PERMISSION_AUDIT)) {
+            return true;
+        }
+        if (args.length < 2 || !"invalid".equalsIgnoreCase(args[1])) {
+            player.sendMessage(ChatColor.RED + "使い方: /boltext audit invalid [page]");
+            return true;
+        }
+        int page = args.length > 2 ? parsePage(args[2]) : 1;
+        List<InvalidProtection> invalid = operationService.findInvalidProtections();
+        int start = Math.min((page - 1) * 5, invalid.size());
+        int end = Math.min(start + 5, invalid.size());
+        player.sendMessage(ChatColor.YELLOW + "invalid Bolt protections: " + invalid.size() + " (page " + page + ")");
+        for (InvalidProtection protection : invalid.subList(start, end)) {
+            player.sendMessage(ChatColor.GRAY + protection.world() + ":" + protection.x() + "," + protection.y() + "," + protection.z() +
+                    " material=" + protection.material() + " owner=" + protection.owner() + " type=" + protection.type());
+        }
+        return true;
+    }
+
+    private int parsePage(String value) {
+        try {
+            return Math.max(1, Integer.parseInt(value));
+        } catch (NumberFormatException exception) {
+            return 1;
+        }
     }
 
     private boolean isAdminScan(String[] args) {
@@ -389,7 +490,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
 
     private void showUsage(Player player) {
         player.sendMessage(ChatColor.YELLOW +
-                "/boltext <public|private|transfer|unlock|inspect|scan|admin|confirm|debug>");
+                "/boltext <public|private|transfer|unlock|access|user|audit|inspect|scan|admin|confirm|debug>");
     }
 
     private String pluginVersion(String name) {
@@ -409,14 +510,19 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             List<String> commands = new ArrayList<>();
-            if (player.hasPermission(PERMISSION_USE)) {
-                commands.addAll(List.of("public", "private", "transfer", "unlock"));
+            if (player.hasPermission(PERMISSION_PUBLIC)) commands.add("public");
+            if (player.hasPermission(PERMISSION_PRIVATE)) commands.add("private");
+            if (player.hasPermission(PERMISSION_TRANSFER)) commands.add("transfer");
+            if (player.hasPermission(PERMISSION_UNLOCK)) commands.add("unlock");
+            if (player.hasPermission(PERMISSION_ACCESS_ADD) || player.hasPermission(PERMISSION_ACCESS_REMOVE)) {
+                commands.addAll(List.of("access", "user"));
             }
-            if (player.hasPermission(PERMISSION_SCAN) || player.hasPermission(PERMISSION_ADMIN)) {
+            if (player.hasPermission(PERMISSION_SCAN) || player.hasPermission(PERMISSION_ADMIN_UNLOCK)) {
                 commands.add("scan");
             }
             if (player.hasPermission(PERMISSION_INSPECT)) commands.add("inspect");
-            if (player.hasPermission(PERMISSION_ADMIN)) {
+            if (player.hasPermission(PERMISSION_AUDIT)) commands.add("audit");
+            if (player.hasPermission(PERMISSION_ADMIN_UNLOCK)) {
                 commands.add("admin");
                 commands.add("confirm");
             }
@@ -425,16 +531,18 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 2) {
             return switch (normalize(args[0])) {
-                case "transfer" -> player.hasPermission(PERMISSION_USE)
+                case "transfer" -> player.hasPermission(PERMISSION_TRANSFER)
                         ? onlinePlayers(args[1])
                         : List.of();
-                case "admin" -> player.hasPermission(PERMISSION_ADMIN)
+                case "admin" -> player.hasPermission(PERMISSION_ADMIN_UNLOCK)
                         ? filter(List.of("unlock"), args[1])
                         : List.of();
                 case "debug" -> player.hasPermission(PERMISSION_DEBUG)
                         ? filter(List.of("status"), args[1])
                         : List.of();
                 case "scan" -> filter(scanTargets(player), args[1]);
+                case "access", "user" -> filter(List.of("add", "remove"), args[1]);
+                case "audit" -> player.hasPermission(PERMISSION_AUDIT) ? filter(List.of("invalid"), args[1]) : List.of();
                 default -> List.of();
             };
         }
@@ -442,7 +550,7 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
             if ("transfer".equalsIgnoreCase(args[1]) && player.hasPermission(PERMISSION_SCAN)) {
                 return onlinePlayers(args[2]);
             }
-            if ("admin".equalsIgnoreCase(args[1]) && player.hasPermission(PERMISSION_ADMIN)) {
+            if ("admin".equalsIgnoreCase(args[1]) && player.hasPermission(PERMISSION_ADMIN_UNLOCK)) {
                 return filter(List.of("unlock"), args[2]);
             }
         }
@@ -452,9 +560,13 @@ public final class BoltextCommand implements CommandExecutor, TabCompleter {
     private List<String> scanTargets(Player player) {
         List<String> targets = new ArrayList<>();
         if (player.hasPermission(PERMISSION_SCAN)) {
-            targets.addAll(List.of("public", "private", "transfer", "unlock"));
+            if (player.hasPermission(PERMISSION_PUBLIC)) targets.add("public");
+            if (player.hasPermission(PERMISSION_PRIVATE)) targets.add("private");
+            if (player.hasPermission(PERMISSION_TRANSFER)) targets.add("transfer");
+            if (player.hasPermission(PERMISSION_UNLOCK)) targets.add("unlock");
+            if (player.hasPermission(PERMISSION_ACCESS_ADD) || player.hasPermission(PERMISSION_ACCESS_REMOVE)) targets.add("access");
         }
-        if (player.hasPermission(PERMISSION_ADMIN)) {
+        if (player.hasPermission(PERMISSION_ADMIN_UNLOCK)) {
             targets.add("admin");
         }
         return targets;

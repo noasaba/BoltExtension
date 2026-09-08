@@ -489,3 +489,11 @@ Bukkit/Paper のログ文脈に乗りにくく、ユーザー向けメッセー�
 6. `OperationSummary` と skip reason 集計の導入。
 7. admin confirm の状態管理強化。
 8. `inspect` / `scan` 系デバッグコマンド追加。
+
+## 2026-09 セキュリティ検証
+
+- WorldGuardの最終認可は選択範囲ではなく、操作対象の各Block位置で行う。離れたリージョン同士のpriorityを混在させない。
+- 新規Protectionは `isProtectable`、ProtectableConfig、type権限、Material別lock権限、WorldGuard、LockBlockEventを通過した場合だけ作成する。
+- `scan` はLockBlockEventを発火しないため、`LOCK_EVENT_NOT_EVALUATED` を結果に表示する。
+- 通常操作はowner限定、admin unlockはconfirm時に選択・Protection ID・位置・WorldGuardを再確認する。
+- 手動確認: 離れたDENY/ALLOWリージョン、STONE、CHEST、他人所有、Boltコマンド権限拒否、restricted access type、offline transferをそれぞれ確認する。

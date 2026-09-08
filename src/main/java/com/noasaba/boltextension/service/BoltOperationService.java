@@ -4,6 +4,7 @@ import com.noasaba.boltextension.config.PluginSettings;
 import com.noasaba.boltextension.model.AccessDecision;
 import com.noasaba.boltextension.model.AdminUnlockPlan;
 import com.noasaba.boltextension.model.BoltInspection;
+import com.noasaba.boltextension.model.InvalidProtection;
 import com.noasaba.boltextension.model.OperationSummary;
 import com.noasaba.boltextension.model.SelectionContext;
 import com.noasaba.boltextension.model.SkipReason;
@@ -15,10 +16,12 @@ import org.bukkit.entity.Player;
 import org.popcraft.bolt.BoltAPI;
 import org.popcraft.bolt.protection.BlockProtection;
 import org.popcraft.bolt.protection.Protection;
+import org.popcraft.bolt.source.Source;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -66,7 +69,7 @@ public final class BoltOperationService {
                     summary.skip(SkipReason.TYPE_ALREADY_SET);
                     return;
                 }
-                if (!hasWorldGuardAccess(player, selection, protection, summary)) {
+                if (!hasWorldGuardAccess(player, block, protection, summary)) {
                     return;
                 }
                 if (execute) {
@@ -77,7 +80,15 @@ public final class BoltOperationService {
                 return;
             }
 
+            if (!hasWorldGuardAccess(player, block, summary)) {
+                return;
+            }
             SkipReason eligibility = eligibilityService.checkNewProtection(player, block, type, execute);
+            if (eligibility == SkipReason.LOCK_EVENT_NOT_EVALUATED) {
+                summary.skip(eligibility);
+                summary.created();
+                return;
+            }
             if (eligibility != null) {
                 summary.skip(eligibility);
                 return;
@@ -114,7 +125,7 @@ public final class BoltOperationService {
                 summary.skip(SkipReason.TRANSFER_TARGET_SAME_AS_OWNER);
                 return;
             }
-            if (!hasWorldGuardAccess(player, selection, protection, summary)) {
+            if (!hasWorldGuardAccess(player, block, protection, summary)) {
                 return;
             }
             if (execute) {
@@ -145,7 +156,7 @@ public final class BoltOperationService {
                 summary.skip(SkipReason.OWNER_MISMATCH);
                 return;
             }
-            if (!bypassOwner && !hasWorldGuardAccess(player, selection, protection, summary)) {
+            if (!hasWorldGuardAccess(player, block, protection, summary)) {
                 return;
             }
             if (execute) {
@@ -153,6 +164,86 @@ public final class BoltOperationService {
             }
             summary.removed();
         });
+    }
+
+    public OperationSummary changeAccess(
+            Player player,
+            SelectionContext selection,
+            UUID target,
+            String accessType,
+            boolean add,
+            boolean execute
+    ) {
+        String source = Source.player(target).toString();
+        return run("access-" + (add ? "add" : "remove"), player, selection, execute, (block, summary) -> {
+            Protection protection = bolt.findProtection(block);
+            if (protection == null) {
+                summary.skip(SkipReason.NO_PROTECTION);
+                return;
+            }
+            if (!summary.markProcessed(protection)) {
+                summary.skip(SkipReason.DUPLICATE_PROTECTION);
+                return;
+            }
+            if (!isOwner(player, protection)) {
+                summary.skip(SkipReason.OWNER_MISMATCH);
+                return;
+            }
+            if (!hasWorldGuardAccess(player, block, protection, summary)) {
+                return;
+            }
+            if (add) {
+                SkipReason typeDecision = eligibilityService.checkAccessType(player, accessType);
+                if (typeDecision != null) {
+                    summary.skip(typeDecision);
+                    return;
+                }
+                if (accessType.equals(protection.getAccess().get(source))) {
+                    summary.skip(SkipReason.ACCESS_ALREADY_SET);
+                    return;
+                }
+                if (execute) {
+                    protection.getAccess().put(source, accessType);
+                    bolt.saveProtection(protection);
+                }
+                summary.changed();
+                return;
+            }
+            if (!protection.getAccess().containsKey(source)) {
+                summary.skip(SkipReason.ACCESS_NOT_PRESENT);
+                return;
+            }
+            if (execute) {
+                protection.getAccess().remove(source);
+                bolt.saveProtection(protection);
+            }
+            summary.changed();
+        });
+    }
+
+    public List<InvalidProtection> findInvalidProtections() {
+        List<InvalidProtection> invalid = new ArrayList<>();
+        for (Protection protection : bolt.loadProtections()) {
+            if (!(protection instanceof BlockProtection blockProtection)) {
+                continue;
+            }
+            Block block = resolveProtectionBlock(blockProtection);
+            if (block != null && !bolt.isProtectable(block)) {
+                invalid.add(new InvalidProtection(
+                        block.getWorld().getName(), block.getX(), block.getY(), block.getZ(),
+                        protection.getOwner(), protection.getType(), block.getType().name()
+                ));
+            }
+        }
+        return List.copyOf(invalid);
+    }
+
+    public Optional<UUID> resolveKnownPlayer(String name) {
+        return eligibilityService.resolveKnownPlayer(name);
+    }
+
+    public String defaultAccessType() {
+        return eligibilityService.defaultAccessType();
     }
 
     public AdminUnlockPlan prepareAdminUnlock(Player player, SelectionContext selection) {
@@ -169,6 +260,9 @@ public final class BoltOperationService {
                 currentSummary.skip(SkipReason.DUPLICATE_PROTECTION);
                 return;
             }
+            if (!hasWorldGuardAccess(player, block, protection, currentSummary)) {
+                return;
+            }
             protections.add(protection);
             currentSummary.removed();
         });
@@ -176,7 +270,7 @@ public final class BoltOperationService {
         return new AdminUnlockPlan(selection, protections, summary);
     }
 
-    public OperationSummary executeAdminUnlock(AdminUnlockPlan plan) {
+    public OperationSummary executeAdminUnlock(Player player, AdminUnlockPlan plan) {
         OperationSummary summary = new OperationSummary();
         for (Protection planned : plan.protections()) {
             summary.scanned();
@@ -184,6 +278,9 @@ public final class BoltOperationService {
                 Protection current = resolveCurrentProtection(planned);
                 if (current == null || !current.getId().equals(planned.getId())) {
                     summary.skip(SkipReason.NO_PROTECTION);
+                    continue;
+                }
+                if (!hasWorldGuardAccess(player, current, summary)) {
                     continue;
                 }
                 bolt.removeProtection(current);
@@ -268,12 +365,7 @@ public final class BoltOperationService {
         return bolt.findProtection(block);
     }
 
-    private boolean hasWorldGuardAccess(
-            Player player,
-            SelectionContext selection,
-            Protection protection,
-            OperationSummary summary
-    ) {
+    private boolean hasWorldGuardAccess(Player player, Protection protection, OperationSummary summary) {
         if (!(protection instanceof BlockProtection blockProtection)) {
             return true;
         }
@@ -283,10 +375,6 @@ public final class BoltOperationService {
             summary.skip(SkipReason.PROTECTION_BLOCK_UNAVAILABLE);
             return false;
         }
-        if (selection.contains(protectionBlock)) {
-            return true;
-        }
-
         AccessDecision access = worldGuardService.checkBlock(player, protectionBlock);
         if (access.allowed()) {
             return true;
@@ -297,6 +385,25 @@ public final class BoltOperationService {
             logger.info("[debug][" + summary.operationId() + "] matched protection denied " +
                     describeProtection(protection) + " worldGuard={" + access.describe() + "}");
         }
+        return false;
+    }
+
+    private boolean hasWorldGuardAccess(
+            Player player,
+            Block selectedBlock,
+            Protection protection,
+            OperationSummary summary
+    ) {
+        return hasWorldGuardAccess(player, selectedBlock, summary)
+                && hasWorldGuardAccess(player, protection, summary);
+    }
+
+    private boolean hasWorldGuardAccess(Player player, Block block, OperationSummary summary) {
+        AccessDecision access = worldGuardService.checkBlock(player, block);
+        if (access.allowed()) {
+            return true;
+        }
+        summary.skip(SkipReason.WORLDGUARD_DENIED);
         return false;
     }
 

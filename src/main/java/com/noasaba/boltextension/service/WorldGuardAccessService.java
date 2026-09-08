@@ -2,7 +2,6 @@ package com.noasaba.boltextension.service;
 
 import com.noasaba.boltextension.config.PluginSettings;
 import com.noasaba.boltextension.model.AccessDecision;
-import com.noasaba.boltextension.model.SelectionContext;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.LocalPlayer;
 import com.sk89q.worldguard.WorldGuard;
@@ -10,12 +9,8 @@ import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.flags.StateFlag;
-import com.sk89q.worldguard.protection.managers.RegionManager;
-import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
-import com.sk89q.worldguard.protection.regions.ProtectedPolygonalRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
-import com.sk89q.worldedit.regions.Polygonal2DRegion;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -34,33 +29,6 @@ public final class WorldGuardAccessService {
         this.settings = settings;
         this.extensionFlag = extensionFlag;
         this.logger = logger;
-    }
-
-    public AccessDecision checkSelection(Player player, SelectionContext selection) {
-        if (!settings.worldGuardEnabled()) {
-            return AccessDecision.allow("integration-disabled", List.of());
-        }
-
-        try {
-            LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
-            if (hasBypass(localPlayer)) {
-                return AccessDecision.allow("worldguard-bypass", List.of());
-            }
-
-            RegionManager manager = WorldGuard.getInstance()
-                    .getPlatform()
-                    .getRegionContainer()
-                    .get(BukkitAdapter.adapt(selection.world()));
-            if (manager == null) {
-                return AccessDecision.deny("region-manager-unavailable", List.of());
-            }
-
-            ProtectedRegion selectedRegion = createSelectionRegion(selection, localPlayer);
-            return evaluate(localPlayer, manager.getApplicableRegions(selectedRegion));
-        } catch (Exception exception) {
-            logger.log(Level.WARNING, "WorldGuardの選択範囲判定に失敗しました", exception);
-            return AccessDecision.deny("worldguard-error", List.of());
-        }
     }
 
     public AccessDecision checkBlock(Player player, Block block) {
@@ -129,20 +97,6 @@ public final class WorldGuardAccessService {
         return settings.worldGuardAllowNoRegion()
                 ? AccessDecision.allow("no-region-allowed", List.of())
                 : AccessDecision.deny("no-region-denied", List.of());
-    }
-
-    private ProtectedRegion createSelectionRegion(SelectionContext selection, LocalPlayer player) {
-        String id = "__boltext_selection_" + player.getUniqueId();
-        if (selection.region() instanceof Polygonal2DRegion polygon) {
-            return new ProtectedPolygonalRegion(
-                    id,
-                    true,
-                    polygon.getPoints(),
-                    selection.minimum().y(),
-                    selection.maximum().y()
-            );
-        }
-        return new ProtectedCuboidRegion(id, true, selection.minimum(), selection.maximum());
     }
 
     private boolean hasBypass(LocalPlayer player) {

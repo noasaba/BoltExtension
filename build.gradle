@@ -35,7 +35,7 @@ sourceSets {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
-    compileOnly("org.popcraft:bolt-bukkit:1.1.52")
+    compileOnly("org.popcraft:bolt-bukkit:1.2.22")
     compileOnly("net.kyori:event-api:3.0.0")
     // https://mvnrepository.com/artifact/com.sk89q.worldedit/worldedit-bukkit
     compileOnly(group: 'com.sk89q.worldedit', name: 'worldedit-bukkit', version: '7.4.3') {
@@ -45,6 +45,10 @@ dependencies {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-bom'
     }
     velocityCompileOnly("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
+    testImplementation("io.papermc.paper:paper-api:26.1.2.build.74-stable")
+    testImplementation("org.popcraft:bolt-bukkit:1.2.22")
 
 }
 
@@ -66,6 +70,10 @@ tasks.withType(JavaCompile).configureEach {
     if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
         options.release.set(targetJavaVersion)
     }
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
 
 processResources {

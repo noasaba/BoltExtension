@@ -11,6 +11,7 @@ public record PluginSettings(
         boolean worldGuardRequireBuildAccess,
         boolean worldGuardRequireMembership,
         boolean worldGuardHonorBypassPermission,
+        boolean requireBoltCommandPermissions,
         boolean debugLogging,
         int maxErrorSamples
 ) {
@@ -21,12 +22,13 @@ public record PluginSettings(
         return new PluginSettings(
                 config.getLong("max-volume", 1_000_000L),
                 toMillis(confirmationSeconds),
-                config.getBoolean("worldguard.enabled", true),
+                config.getBoolean("worldguard.checks-enabled", true),
                 config.getBoolean("worldguard.flag-default", true),
                 config.getBoolean("worldguard.allow-no-region", false),
                 config.getBoolean("worldguard.require-build-access", true),
                 config.getBoolean("worldguard.require-membership", true),
                 config.getBoolean("worldguard.honor-bypass-permission", true),
+                config.getBoolean("permissions.require-bolt-command-permissions", true),
                 config.getBoolean("logging.debug", false),
                 maxErrors
         );

@@ -8,6 +8,9 @@ import org.popcraft.bolt.access.Access;
 import org.popcraft.bolt.event.LockBlockEvent;
 import org.popcraft.bolt.util.ProtectableConfig;
 
+import java.util.Optional;
+import java.util.UUID;
+
 public final class BoltProtectionEligibilityService {
 
     private final BoltPlugin bolt;
@@ -48,12 +51,33 @@ public final class BoltProtectionEligibilityService {
         }
 
         if (fireEvent) {
-            LockBlockEvent event = new LockBlockEvent(player, block);
+            LockBlockEvent event = new LockBlockEvent(player, block, false);
             bolt.getEventBus().post(event);
             if (event.isCancelled()) {
                 return SkipReason.LOCK_EVENT_CANCELLED;
             }
+        } else {
+            return SkipReason.LOCK_EVENT_NOT_EVALUATED;
         }
         return null;
+    }
+
+    public SkipReason checkAccessType(Player player, String type) {
+        Access access = bolt.getBolt().getAccessRegistry().getAccessByType(type).orElse(null);
+        if (access == null) {
+            return SkipReason.ACCESS_TYPE_UNKNOWN;
+        }
+        if (access.restricted() && !player.hasPermission("bolt.type.access." + access.type())) {
+            return SkipReason.ACCESS_TYPE_DENIED;
+        }
+        return null;
+    }
+
+    public String defaultAccessType() {
+        return bolt.getDefaultAccessType();
+    }
+
+    public Optional<UUID> resolveKnownPlayer(String name) {
+        return Optional.ofNullable(bolt.getProfileCache().getProfile(name)).map(profile -> profile.uuid());
     }
 }

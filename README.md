@@ -36,7 +36,7 @@ build/release/
     boltextension-velocity-<version>.jar
 ~~~
 
-Paper jar は実際の WorldEdit / WorldGuard / Bolt 連携と `/boltext` コマンドを提供します。Velocity jar は proxy 側 companion です。
+Paper jar は実際の WorldEdit / WorldGuard / Bolt 連携と `/boltext` コマンドを提供します。Velocity jar は現時点ではロード通知だけを行うstubです。保護操作・同期・認可はすべてPaper側で実行されます。
 Paper API は `26.1.2` を参照し、`plugin.yml` のAPI世代は `26.1` として宣言します。
 
 ## 設定ファイル (`config.yml`)
@@ -45,11 +45,14 @@ Paper API は `26.1.2` を参照し、`plugin.yml` のAPI世代は `26.1` とし
 max-volume: 1000000  # 保護できる最大のブロック数
 
 worldguard:
-  enabled: true         # WorldGuard を使用するかどうか
+  checks-enabled: true  # BoltExtensionによるWorldGuard認可チェックを使用するか
   flag-default: true    # フラグのデフォルト値（true = ALLOW, false = DENY）
   allow-no-region: false  # WorldGuard 管理外の領域も許可するか
   require-build-access: true  # WorldGuard の有効な BUILD 判定も要求するか
   require-membership: true  # 重なる全リージョンで owner/member を要求するか
+
+permissions:
+  require-bolt-command-permissions: true  # Bolt本体のコマンド権限も要求する
 ~~~
 
 リージョン単位でBoltExtensionだけを許可・拒否する場合は、WorldGuardで次のように設定します。
@@ -59,7 +62,7 @@ worldguard:
 /rg flag <region> bolt-extension-allow deny
 ~~~
 
-通常操作は、有効な `bolt-extension-allow`、WorldGuardの `BUILD`、必要なら全リージョンのowner/memberを順に確認します。リージョンデータを読み込めない場合は、設定にかかわらず安全側で拒否します。
+通常操作は、実際に処理する各ブロック位置で有効な `bolt-extension-allow`、WorldGuardの `BUILD`、必要ならowner/memberを順に確認します。選択範囲に離れて存在する高priorityリージョンが、別地点のDENYを打ち消すことはありません。リージョンデータを読み込めない場合は、設定にかかわらず安全側で拒否します。
 
 ## コマンド一覧
 
@@ -76,6 +79,12 @@ worldguard:
 
 - **/boltext unlock**  
   自分が所有するブロック保護を解除（削除）します。
+
+- **/boltext access add `<player>` [accessType]** / **/boltext access remove `<player>`**
+  自分が所有する既存保護のaccess listだけを変更します。`user` は `access` のaliasです。未保護ブロックを新規保護しません。
+
+- **/boltext audit invalid [page]**
+  現在Boltでprotectableではないのに残っている既存Block Protectionを確認専用で表示します。
 
 - **/boltext admin unlock**  
   管理者権限を持つユーザーが、他プレイヤーのブロック保護を解除するためのコマンドです。実行後、確認のために **/boltext confirm** を実行してください。
@@ -101,7 +110,8 @@ worldguard:
 - WorldGuard の `bolt-extension-allow` と有効な `BUILD` 判定を使い、リージョンの優先度・継承・region groupを反映します。
 - 非直方体のWorldEdit選択では、外接直方体ではなく実際に選択されたブロックだけを処理します。
 - ドアや連結チェストなどの代表保護が選択外にある場合、その代表ブロック側のWorldGuard権限も確認します。
-- 管理者コマンドは WorldGuard と owner 判定をバイパスします。誤操作による他プレイヤーの保護データ削除を防ぐため、確認手順が必須となっています。
+- 管理者のunlockだけがowner判定をバイパスできます。WorldGuard判定はバイパスせず、誤操作防止の確認手順と削除直前の再検証を必須にしています。
+- `scan` は変更を行いません。新規作成については外部プラグインがキャンセルできる`LockBlockEvent`を発火しないため、`LOCK_EVENT_NOT_EVALUATED`が表示された件数は本実行時に変わる可能性があります。
 
 ## 開発者情報
 
