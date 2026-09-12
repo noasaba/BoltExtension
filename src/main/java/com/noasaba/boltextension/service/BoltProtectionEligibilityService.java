@@ -55,15 +55,9 @@ public final class BoltProtectionEligibilityService {
         }
 
         if (fireEvent) {
-            LockBlockEvent event = new LockBlockEvent(player, block, false);
-            bolt.getEventBus().post(event);
-            if (event.isCancelled()) {
-                return SkipReason.LOCK_EVENT_CANCELLED;
-            }
-        } else {
-            return SkipReason.LOCK_EVENT_NOT_EVALUATED;
+            return postLockBlockEvent(player, block);
         }
-        return null;
+        return SkipReason.LOCK_EVENT_NOT_EVALUATED;
     }
 
     public SkipReason checkNewProtection(Player player, Entity entity, String type, boolean fireEvent) {
@@ -87,15 +81,40 @@ public final class BoltProtectionEligibilityService {
         }
 
         if (fireEvent) {
-            LockEntityEvent event = new LockEntityEvent(player, entity, false);
-            bolt.getEventBus().post(event);
-            if (event.isCancelled()) {
-                return SkipReason.LOCK_EVENT_CANCELLED;
-            }
-        } else {
-            return SkipReason.LOCK_EVENT_NOT_EVALUATED;
+            return postLockEntityEvent(player, entity);
         }
-        return null;
+        return SkipReason.LOCK_EVENT_NOT_EVALUATED;
+    }
+
+    private SkipReason postLockBlockEvent(Player player, Block block) {
+        try {
+            LockBlockEvent event = new LockBlockEvent(player, block, false);
+            postBoltEvent(event);
+            return event.isCancelled() ? SkipReason.LOCK_EVENT_CANCELLED : null;
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            return SkipReason.LOCK_EVENT_UNAVAILABLE;
+        }
+    }
+
+    private SkipReason postLockEntityEvent(Player player, Entity entity) {
+        try {
+            LockEntityEvent event = new LockEntityEvent(player, entity, false);
+            postBoltEvent(event);
+            return event.isCancelled() ? SkipReason.LOCK_EVENT_CANCELLED : null;
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            return SkipReason.LOCK_EVENT_UNAVAILABLE;
+        }
+    }
+
+    private void postBoltEvent(Object event) throws ReflectiveOperationException {
+        Object eventBus = bolt.getClass().getMethod("getEventBus").invoke(bolt);
+        for (var method : eventBus.getClass().getMethods()) {
+            if (method.getName().equals("post") && method.getParameterCount() == 1) {
+                method.invoke(eventBus, event);
+                return;
+            }
+        }
+        throw new NoSuchMethodException("Bolt EventBus.post(Event)");
     }
 
     public SkipReason checkAccessType(Player player, String type) {
