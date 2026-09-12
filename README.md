@@ -11,7 +11,7 @@
 ## 必要条件
 
 - **Minecraft サーバー (Paper, Spigot, Bukkit 互換)**
-- **Minecraft Java Edition 26.1.2**
+- **Minecraft Java Edition 26.2**
 - **JDK 25 以降**
 - **WorldEdit プラグイン** (必須)
 - **Bolt プラグイン** (必須)
@@ -34,7 +34,7 @@ build/release/
 ~~~
 
 Paper jar は実際の WorldEdit / WorldGuard / Bolt 連携と `/boltext` コマンドを提供します。保護操作・同期・認可はすべてPaper側で実行されます。
-Paper API は `26.1.2` を参照し、`plugin.yml` のAPI世代は `26.1` として宣言します。
+Paper API は `26.2` を参照し、`plugin.yml` のAPI世代は `26.2` として宣言します。
 
 ## 設定ファイル (`config.yml`)
 

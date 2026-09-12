@@ -30,19 +30,23 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
+    compileOnly("io.papermc.paper:paper-api:26.2.build.+")
     compileOnly("org.popcraft:bolt-bukkit:1.2.22")
     compileOnly("net.kyori:event-api:3.0.0")
     // https://mvnrepository.com/artifact/com.sk89q.worldedit/worldedit-bukkit
     compileOnly(group: 'com.sk89q.worldedit', name: 'worldedit-bukkit', version: '7.4.3') {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-bom'
+        exclude group: 'com.google.guava', module: 'guava'
+        exclude group: 'com.google.code.gson', module: 'gson'
     }
     compileOnly(group: 'com.sk89q.worldguard', name: 'worldguard-bukkit', version: '7.0.17') {
         exclude group: 'org.apache.logging.log4j', module: 'log4j-bom'
+        exclude group: 'com.google.guava', module: 'guava'
+        exclude group: 'com.google.code.gson', module: 'gson'
     }
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.2")
-    testImplementation("io.papermc.paper:paper-api:26.1.2.build.74-stable")
+    testImplementation("io.papermc.paper:paper-api:26.2.build.123-stable")
     testImplementation("org.popcraft:bolt-bukkit:1.2.22")
 
 }

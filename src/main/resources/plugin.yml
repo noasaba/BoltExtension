@@ -1,7 +1,7 @@
 name: BoltExtension
 version: ${version}
 main: com.noasaba.boltextension.BoltExtension
-api-version: "26.1"
+api-version: "26.2"
 authors: [ "noasaba" ]
 description: "Bolt + WorldEdit + WorldGuard で保護の一括操作"
 depend: [ "WorldEdit", "Bolt", "WorldGuard" ]
